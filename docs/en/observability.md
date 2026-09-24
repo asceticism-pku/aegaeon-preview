@@ -1,0 +1,52 @@
+# Logs, Monitoring, and Health Checks
+
+## Logs
+
+```bash
+mkdir -p logs
+AEGAEON_LOG_FILE="$PWD/logs/server.log" \
+  aegaeon start --config /srv/aegaeon/config.yaml --ray-address 127.0.0.1:6789
+```
+
+The default log file is output.log. With multiple processes and nodes, identify which machine owns each path. There is no general built-in log rotation setting; use process management and log collection tools to manage storage.
+
+## Runtime snapshots
+
+```bash
+curl -sS http://127.0.0.1:8000/v1/aegaeon/runtime
+```
+
+Main top-level fields are timestamp, model_placement_policy, request_routing_policy, last_model_placement_decision, model_placement_stats, model_placements, request_routing, engines, events, work_stealing, decode_load, and nodes.
+
+request_routing tracks API reservations that are assigned but incomplete. nodes.request_load reports Controller-observed active requests, sampled at a different time. cumulative_assignments is a historical total; use active-request fields for current queue depth.
+
+runtime queries Controllers sequentially, so fields come from adjacent but distinct sample times. Cross-node wall times use each node's system clock. A Controller RPC failure causes the runtime request to return an error.
+
+## Runtime SSE
+
+```bash
+curl -N http://127.0.0.1:8000/v1/aegaeon/events
+```
+
+The event name is runtime and data contains engines/events. Polling occurs approximately every 0.25 seconds, with keep-alive roughly every 15 seconds while state is unchanged. The endpoint provides live SSE only; it stores no history and implements no Last-Event-ID recovery.
+
+## Access metrics and rate limits
+
+metrics returns timestamp, window_seconds, limits, and metrics. Statistics are per model, with a default 60-second window. Configure limits through:
+
+```bash
+export AEGAEON_MAX_REQUESTS_PER_SECOND=10
+export AEGAEON_MAX_TOKENS_PER_SECOND=1000
+```
+
+Limits apply per model over the current 60-second window. Token limits use recorded generated tokens and reserve no in-flight output; check and record are separate operations. Request accounting occurs before generation-parameter validation, so rejected parameter values also count. Each API process keeps independent statistics.
+
+429 rejects requests at admission; it does not immediately cancel every in-flight request when token rates exceed a threshold.
+
+## GPU power
+
+gpu-power queries nvidia-smi on the API host and does not aggregate remote Ray nodes. Sampled power is not per-request energy or proof of process GPU utilization. See the [power guide](energy.md).
+
+## Health-check levels
+
+`/health` only returns status=ok. External monitoring can check HTTP, runtime node/Engine state, and occasional short real inference separately. Real inference consumes resources, so use a confirmed short request. The repository does not currently provide a complete deep-readiness endpoint.
