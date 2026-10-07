@@ -2,11 +2,11 @@
 
 ## 对外导出
 
-包通过惰性导出提供 `LLMService`、`NodeConfig` 和 `Request`。Python 接口面向 Aegaeon 控制面，入口是 token 化后的 `Request` 和 `LLMService.serve()`；它采用自身的请求模型与服务生命周期。
+包以惰性导出方式提供 `LLMService`、`NodeConfig` 和 `Request`。调用方先将输入编码为 token ID，构造 `Request`，再传给 `LLMService.serve()`。这个接口使用 Aegaeon 的请求类型和控制逻辑，不提供 `vllm.LLM.generate(prompt, SamplingParams)`。
 
 ## 同步推理示例
 
-在真实Linux/CUDA环境、可用profile与Ray资源具备时，从仓库根目录运行：
+在 Linux/CUDA 环境中准备好可用的 profile 和 Ray 资源后，从仓库根目录运行：
 
 ```python
 import os
@@ -57,25 +57,25 @@ finally:
     ray.shutdown()
 ```
 
-这是 Completion 风格的 token 输入。Chat 调用方需要先应用正确的聊天模板。HTTP 层负责的字符串 stop 和响应包装也需要由直接 Python 调用方自行实现。
+示例传入的是 Completion 风格的 token。Chat 调用方须先应用正确的聊天模板。直接使用 Python 接口时，还须自行处理 HTTP 层提供的字符串 stop 和响应包装。
 
 ## LLMService
 
 | 入口 | 用途 / 说明 |
 |---|---|
-| LLMService(cluster_config, model_placement_policy=None, request_routing_policy=None) | 初始化Controller和event loops，会同步等待初始化 |
-| serve(requests) | 为各请求 reserve 节点并最终 release；用 asyncio.run 并发提交，返回每请求 StepOutput 列表或异常对象；适用于同步入口，异步应用需放在线程或独立进程中调用 |
-| replay(out_path, ...) | 按到达时间重放并写项目统计；阅读源码了解计时和qos口径 |
-| deploy_model_replicas(...) | async副本部署入口 |
-| undeploy_model_replicas(...) | async副本卸载入口 |
-| reserve_node / release_node_reservation | HTTP生命周期的路由记账；直接使用时负责成对释放 |
+| LLMService(cluster_config, model_placement_policy=None, request_routing_policy=None) | 初始化 Controller 和 event loops，并同步等待初始化完成 |
+| serve(requests) | 为每个请求预留节点，结束后释放；通过 `asyncio.run` 并发提交，按请求返回 `StepOutput` 列表或异常对象；异步应用需在线程或独立进程中调用 |
+| replay(out_path, ...) | 按请求到达时间重放并写入项目统计；计时方法和 QoS 定义见实现 |
+| deploy_model_replicas(...) | async 副本部署入口 |
+| undeploy_model_replicas(...) | async 副本卸载入口 |
+| reserve_node / release_node_reservation | 维护 HTTP 请求的路由占用记录；直接调用时须成对使用 |
 | request_routing_snapshot / model_placement_stats_snapshot | 当前与累计统计 |
-| reset() | 调用各节点的 reset，重置 BlockManager、Prefill/Decode Dispatcher 和引擎，并清空请求输出与模型映射；Ray 集群生命周期由集群管理命令负责 |
+| reset() | 调用各节点的 reset，重置 BlockManager、Prefill/Decode Dispatcher 和引擎，并清空请求输出与模型映射；不会停止 Ray |
 
-NodeConfig是每Controller资源与策略配置；必填node_id、num_prefill_engines、num_decode_engines。model_cache_size单位bytes，与server YAML的GiB不同。
+`NodeConfig` 配置每个 Controller 的资源与策略；`node_id`、`num_prefill_engines`、`num_decode_engines` 为必填项。`model_cache_size` 的单位是 bytes，server YAML 使用 GiB。
 
-`Request` 包含 model、arrival_time、request_id、prompt_token_ids、decode_tokens，以及可选 EOS、stop、min 和 context 参数。构造函数还保留 `multimodal_input` 字段，但当前支持范围要求该字段为 `None`。HTTP API 会补充 EOS 集合与 max_model_len；直接 Python 调用应显式提供这些值。
+`Request` 包含 `model`、`arrival_time`、`request_id`、`prompt_token_ids`、`decode_tokens`，以及可选的 EOS、stop、min 和 context 参数。构造函数保留了 `multimodal_input` 字段，当前支持范围要求它为 `None`。HTTP API 会补充 EOS 集合与 `max_model_len`；直接调用 Python 接口时应显式提供这些值。
 
 ## 稳定性
 
-Python 接口随控制面实现同步演进，公开入口为本章列出的 `LLMService`、`NodeConfig` 和 `Request`。应用集成应通过这些入口完成；新增能力时在包级 API 增加公共封装和测试。
+Python 接口随控制面实现演进。应用集成应使用本章列出的 `LLMService`、`NodeConfig` 和 `Request`；新增能力时，应在包级 API 中补充公共封装和测试。

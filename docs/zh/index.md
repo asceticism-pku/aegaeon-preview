@@ -3,13 +3,15 @@
 <div class="home-hero">
 <div class="hero-wordmark"><svg viewBox="0 0 72 80" aria-hidden="true"><path d="M36 3 69 71H54L36 33 18 71H3Z" fill="#5368d6"/><path d="M27 56h18l7 15H20Z" fill="#91a1ef"/><path d="M36 3 45 22 36 33 27 22Z" fill="#bdc8ff"/></svg><span>Aegaeon</span></div>
 <p class="hero-tagline">面向多模型服务的 Token 级推理引擎</p>
-<p class="hero-subtitle">在共享 GPU 资源上交错执行多个大语言模型，统一管理调度、权重缓存与请求生命周期。</p>
+<p class="hero-subtitle">通过 Token 级调度、快速模型切换与请求状态恢复，让多个大语言模型共享 GPU。</p>
 <div class="hero-actions"><a class="primary-action" href="quickstart.md">快速开始 <span aria-hidden="true">→</span></a><a class="secondary-action" href="https://github.com/pkusys/aegaeon">GitHub <span aria-hidden="true">↗</span></a></div>
 </div>
 
-Aegaeon 是一个多模型推理与服务系统。它使用 vLLM 的模型实现与计算内核，通过 Ray 和 asyncio 管理执行资源，在模型切换、批次调度和 KV Cache 搬运之间协调多个模型的请求。
+Aegaeon 是面向多模型服务的 GPU 池化系统，适用于大量模型请求稀疏、负载不均或流量突发的场景。它在 Token 生成边界暂停与恢复进行中的请求，让其他模型在已有请求尚未结束时获得 GPU 执行机会。这样既能让长尾模型共享计算资源，也能减少请求级模型切换造成的队头阻塞。
 
-当前版本面向纯文本模型，采用贪心解码，Tensor Parallel 固定为 1。公开能力覆盖文本生成、模型管理和运行时观测；其余接口与并行模式的实现状态见[功能与兼容性](capabilities.md)。
+Aegaeon 将模型权重缓存在主机内存中，并为后续执行预取权重；切换模型时，通过 CPU 与 GPU 之间的 KV Cache 搬运保留请求状态。结合基于性能 Profile 的 Decode 调度，同一组 GPU 引擎可以轮流服务多个模型，而无需让全部模型常驻显存。
+
+[SOSP '25 论文](https://doi.org/10.1145/3731569.3764815)报告：在满足论文评测的 SLO 目标时，Aegaeon 可承载的请求到达率为 ServerlessLLM 的 2–2.5 倍；在论文所述的阿里云百炼（Model Studio）beta 部署中，GPU 数量由 1,192 张降至 213 张，减少 82%。
 
 ## 从这里开始
 
@@ -21,14 +23,14 @@ Aegaeon 是一个多模型推理与服务系统。它使用 vLLM 的模型实现
 
 ## 核心功能
 
-- **多模型复用**：通过模型切换和执行配额，在固定引擎资源上交错处理多个模型。
-- **灵活的执行模式**：使用 Simple Engine 完成两阶段推理，或分别部署 Prefill 与 Decode Engine。
-- **动态模型管理**：部署和卸载节点级缓存副本，并在 READY 副本之间路由请求。
-- **在线与流式推理**：提供 Chat、Completion 和 SSE 流式接口，支持贪心解码。
-- **运行时可观测性**：查看引擎状态、模型放置、请求负载和调度事件。
-- **可选优化**：在适用的 Decode 路径上使用 Work Stealing 或 Foundry 图存档。
+- **Token 级 GPU 池化**：在 Decode 轮次与执行配额边界切换活跃模型，让长请求在生成过程中让出 GPU 时间，多个模型共享同一组引擎。详见[调度与 SLO](scheduling.md)。
+- **面向 Token 延迟的 Decode 调度**：利用实测性能 Profile 和模型切换开销估计，为批次分配执行配额，权衡切换成本与单 Token 输出时间（TPOT）目标。
+- **快速且可恢复的模型切换**：结合主机内存权重缓存、下一模型预取和异步 KV Cache 换出与换入，在切换模型时保留进行中请求的状态。详见[内存、权重缓存与 KV Cache](memory.md)。
+- **独立的 Prefill 与 Decode 资源池**：分别为提示词处理和 Token 生成分配 GPU 引擎，减少两阶段之间的干扰；Simple 模式则由同一引擎完成两阶段。详见[系统架构](architecture.md)。
 
-配置参数和接口边界请参阅[功能与兼容性](capabilities.md)。
+## 当前版本
+
+当前版本使用 vLLM 的模型实现与计算内核，面向纯文本模型并采用贪心解码，Tensor Parallel 和 Pipeline Parallel 均固定为 1。提供 Chat、Completion、SSE 流式输出、动态模型管理和运行时观测，并通过 vLLM 工具解析器支持模型相关的函数工具调用。多模态输入、随机采样和量化配置均在当前支持范围之外。模型与接口范围、并行约束及可选优化见[功能与兼容性](capabilities.md)。
 
 ## 文档导航
 

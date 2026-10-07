@@ -8,6 +8,21 @@
 
 **setup时找不到torch**：setup.py顶层导入torch；按安装顺序先准备匹配torch再构建。**aegaeon.ops缺失或undefined symbol**：检查扩展是否以当前torch/CUDA构建，环境是否更换过torch，nvcc与wheel是否兼容。**quick_model_loader._rlib缺失**：检查Rust工具链与editable扩展编译结果。**vLLM内部模块导入失败**：主项目使用版本敏感内部接口，检查vllm==0.26.0而不是直接升级到任意最新版。
 
+**Conda 报 database is locked**：测试环境的 libmamba SQLite 分片缓存曾出现该错误，独立包缓存也未完全避免。可设置 `export CONDA_PKGS_DIRS="$HOME/.conda/pkgs-aegaeon"`，并在 `conda create/install` 中使用 `--solver classic`；安装文档已采用此组合。
+
+### 可选安装验证
+
+安装脚本已检查 CUDA 运算、核心导入和依赖一致性；排查安装失败或更换环境后，可在当前环境手动复查：
+
+```bash
+python -c "import torch, vllm; print(torch.__version__, vllm.__version__, torch.version.cuda); print(torch.ones(1, device='cuda'))"
+python -c "import torch, quick_model_loader._rlib, aegaeon.ops; from aegaeon import LLMService, NodeConfig, Request; print('core imports OK')"
+aegaeon --help
+aegaeon start --help
+```
+
+安装文档对应版本为 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129`、CUDA `12.9`。包使用惰性导出，检查 CUDA 扩展和 loader 时请分别导入上述模块。
+
 ## Ray与GPU
 
 **Ray 连接失败**：默认 auto 会连接现有集群；先启动 Ray 或显式传入 --ray-address。**缺少 node_0/node_1 资源**：启动 Ray 时添加相应自定义资源；多 GPU 单机的 nnodes 仍为 1。**Actor 一直 pending**：用 ray status 检查 CPU、GPU 和 placement group 资源，重点核对 worker_num_cpus×Worker 数。**CUDA 状态或编号异常**：检查 nvidia-smi、torch.cuda.is_available、driver 和 actor 可见性传播。
@@ -21,6 +36,18 @@ python -c "import torch; print(torch.cuda.is_available(), torch.cuda.device_coun
 ## 缓存与内存
 
 **CPU free blocks 不足**：增加 slab 或降低并发与长度，并检查主机内存和共享目录。**部署返回 507**：查看 failed、节点 cache fit、碎片和活动模型保护；GPU OOM 会沿独立错误路径返回。**GPU MemoryError/OOM**：区分估计剩余 <=0 与实际加载峰值，检查 current/prefetch/临时 workspace。**启动占用大量 CPU 内存**：默认预算含 128 GiB CPU KV 和权重 cache，请显式配置适合机器的数值。
+
+### 主机内存注册与 memlock
+
+QuickLoader 使用共享主机内存和 CUDA host registration。出现 host registration 或 pinned memory 错误时，检查共享内存及 memlock 的 soft/hard 上限（`ulimit -l` 单位为 KiB）：
+
+```bash
+df -h /dev/shm
+ulimit -Sl
+ulimit -Hl
+```
+
+一次 A100 验收在 memlock hard 上限为 64 MiB 时通过；其他环境的限制需求以实际启动结果为准。必要时调整服务或容器限制后重新启动 Ray。
 
 ## 模型与profile
 

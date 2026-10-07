@@ -18,28 +18,28 @@
 | 随机采样 / 多候选 | 当前仅提供贪心解码，`n` 固定为 1 | `_validate_greedy_parameters` |
 | Logprobs / beam search | 未实现 | `api.py` |
 | 多模态输入 | 当前仅提供文本输入与文本生成 | `api.py`、`worker.py` |
-| 前缀缓存 | 当前关闭，vLLM CacheConfig 中显式设置 | `config.py` |
+| 前缀缓存 | 当前关闭；在 vLLM CacheConfig 中显式禁用 | `config.py` |
 | 量化配置 | 当前固定为 `quantization=None` | `config.py` |
-| Decode Work Stealing | 支持可选启用，默认关闭；作用域为同一 Controller 内的完整安全批次 | `decode_dispatcher.py` |
+| Decode Work Stealing | 可选，默认关闭；仅在同一 Controller 内转移符合条件的完整 batch | `decode_dispatcher.py` |
 | Foundry 图存档 | 支持 P/D 模式的 Decode Worker；Simple Worker 走常规路径 | `stage_engine.py` |
-| 运行时快照 / 事件 | 支持 JSON 快照与 SSE 事件流 | `api.py` |
+| Runtime 快照 / 事件 | 支持 JSON 快照与 SSE 事件流 | `api.py` |
 | Prometheus 指标 | 未集成 | `api.py` |
 | API key 鉴权 | 由部署侧网关提供；Aegaeon 服务端省略 key 校验 | `api.py` |
 
 ## 并行约束
 
-Aegaeon 当前只支持 `tensor_parallel_size=1`。配置解析器能够读取更大的整数，但时延估计器明确执行 `assert tp == 1`，调度、KV Cache 和 Foundry 路径也只按 TP=1 纳入支持范围。所有部署配置、性能数据和问题报告都应使用 TP=1。
+Aegaeon 当前只支持 `tensor_parallel_size=1`。配置解析器虽然接受更大的整数，时延估计器仍执行 `assert tp == 1`；调度、KV Cache 和 Foundry 也只将 TP=1 纳入支持范围。部署配置、性能数据和问题报告都应使用 TP=1。
 
-Pipeline Parallel 同样固定为 1。扩展吞吐时，请增加 Simple Engine 数量，或增加 Prefill/Decode Engine 数量；一个 Engine 对应一个 Worker 和一张 GPU。
+Pipeline Parallel 同样固定为 1。若要提高吞吐量，可以增加 Simple Engine 或 Prefill/Decode Engine 的数量。每个 Engine 对应一个 Worker 和一张 GPU。
 
 ## 模型与输入范围
 
-公开接口支持纯文本语言模型、字符串消息和文本生成。Chat 请求使用 tokenizer 的聊天模板；Completion 接受字符串或一组 token ID。
+公开接口支持纯文本语言模型、字符串消息和文本生成。Chat 请求应用 tokenizer 的聊天模板；Completion 接受字符串或一组 token ID。
 
-公开服务当前只接受文本输入并生成文本。`Message.content` 与 Worker 中的 content-parts、多模态处理代码以及 `mm_processor_kwargs` 都是保留实现，公开请求路径仅处理字符串内容。
+`Message.content` 也接受内容块列表，`mm_processor_kwargs` 会随这类输入传给 vLLM renderer/processor，Worker 中也有相应处理路径。具体多模态模型尚未纳入公开验收范围。
 
-模型接入以当前配置、权重加载、性能 profile、聊天模板、EOS、KV 类型和目标拓扑全部正常为准。新模型的固定验收步骤见[模型准备与注册](models.md)。
+接入一个模型前，需要确认其配置、权重加载、性能 profile、聊天模板、EOS、KV 类型和目标拓扑均正常。新模型的验收步骤见[模型准备与注册](models.md)。
 
 ## 接口边界
 
-HTTP 服务提供 Chat Completions、Completions、Tokenize、Detokenize、模型管理和运行时观测接口。Chat Completions 支持模型相关的函数工具调用：请求接受 `tools`、`tool_choice` 和历史 `tool_calls`，输出解析依赖模型可用的 vLLM tool parser 或显式 `tool_parser` 配置。Responses、Embeddings、Rerank、Audio、文件上传、Batch Jobs 和 JSON Schema 约束输出当前为未实现状态。
+HTTP 服务提供 Chat Completions、Completions、Tokenize、Detokenize、模型管理和运行时观测接口。Chat Completions 接受 `tools`、`tool_choice` 和历史 `tool_calls`。解析模型输出中的函数调用时，需要可用的 vLLM tool parser，或显式设置 `tool_parser`。Responses、Embeddings、Rerank、Audio、文件上传、Batch Jobs 和 JSON Schema 约束输出当前尚未实现。

@@ -28,6 +28,18 @@ Download implementations cover these two values. The code checks `~/.cache/model
 
 The service forwards several MODEL_ROOT/PROXY variables to actors, while the downloader uses settings recognized by its SDK. Configure `HTTP_PROXY` and `HTTPS_PROXY` for network access, or set a local `path` for offline deployment.
 
+## Download and proxy troubleshooting
+
+A complete local checkpoint needs no download. If a Hugging Face download fails, check connectivity first; if a proxy is needed, configure a working address in the shell running the download:
+
+```bash
+export HTTPS_PROXY=http://127.0.0.1:7890
+export HTTP_PROXY="$HTTPS_PROXY"
+curl -fsS --max-time 20 https://huggingface.co/api/models/Qwen/Qwen3-4B >/dev/null
+```
+
+Replace the example proxy address for your environment, or omit the proxy settings for direct access. If Xet weight downloads time out through the proxy, set `export HF_HUB_DISABLE_XET=1` to use standard HTTP downloads. After a network interruption, rerun the same `hf download` command with the same `--local-dir` to continue; finish downloading before starting the service.
+
 ## Model configuration
 
 ModelConfig uses bf16, estimates 2 bytes per parameter, and sets `trust_remote_code=True`, `model_impl='auto'`, `quantization=None`, `revision=None`, and vLLM `enforce_eager=True`. YAML has no dtype, quantization, or revision options.

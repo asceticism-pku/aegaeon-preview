@@ -1,6 +1,6 @@
 # Source Module Index
 
-This index lists main modules and their top-level classes and functions for development. Applications should use the public [Python API](python-api.md).
+For development, this index lists the main modules and their top-level classes and functions. Applications should use the public [Python API](python-api.md).
 
 | File | Top-level symbols |
 |---|---|

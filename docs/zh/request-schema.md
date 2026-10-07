@@ -1,6 +1,6 @@
-# 请求 Schema 完整字段
+# 请求 Schema 字段
 
-生成请求继承 `GreedyGenerationRequest`；Chat 与 Completion 表列出各自新增或覆盖的字段。实际允许值还受生成参数校验限制，见 [生成参数](generation.md)。
+Chat 和 Completion 请求都继承 `GreedyGenerationRequest`。各自的表格只列新增或覆盖的字段；字段的实际允许值还受生成参数校验限制，见[生成参数](generation.md)。
 
 ## FunctionDefinition
 
@@ -109,7 +109,7 @@
 | parallel_tool_calls | `bool \| None` | `None` |
 | logprobs | `bool \| None` | `False` |
 | top_logprobs | `int \| None` | `0` |
-| mm_processor_kwargs | `dict[str, Any] \| None` | `None`；多模态保留字段，公开请求当前只接受文本 |
+| mm_processor_kwargs | `dict[str, Any] \| None` | `None`；内容块输入时传给 vLLM renderer/processor；公开验收范围仅包括文本 |
 
 ## CompletionRequest
 

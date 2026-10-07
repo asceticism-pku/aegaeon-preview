@@ -52,7 +52,7 @@ server:
     seq_len_buckets: [4096]
 ```
 
-The current Worker implementation requires exactly one value in `seq_len_buckets`; it is the maximum sequence length supported by the captured graphs. `batch_sizes` may contain several positive integers, but the runtime batch size must match one of them exactly. Capturing more batch sizes increases model-load time and graph memory, so choose them from the workload you expect to serve.
+The current Worker implementation requires exactly one value in `seq_len_buckets`; it is the maximum sequence length supported by the captured graphs. `batch_sizes` accepts several positive integers, but the runtime batch size must match one of them exactly. Capturing more batch sizes increases model-load time and graph memory, so choose them from the workload you expect to serve.
 
 Use [`foundry-save.yaml`](examples/foundry-save.yaml) and [`foundry-load.yaml`](examples/foundry-load.yaml) as complete configuration examples.
 

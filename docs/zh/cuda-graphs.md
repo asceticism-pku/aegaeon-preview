@@ -80,4 +80,4 @@ LOAD 会检查模型注册表中的所有模型，而不只是 `startup_models`�
 
 ## 何时需要重新录制
 
-Foundry 存档依赖模型权重、Aegaeon/Foundry 代码、PyTorch、vLLM、CUDA、驱动、GPU 架构以及 CUDA Graph 的内存布局配置。以上任一项变化后，都应使用新的空目录重新执行 SAVE，并再次与 OFF 基线比较 token ID。不要把旧存档当作跨版本可移植格式。
+Foundry 存档依赖模型权重、Aegaeon/Foundry 代码、PyTorch、vLLM、CUDA、驱动、GPU 架构以及 CUDA Graph 的内存布局配置。以上任一项变化后，都应使用新的空目录重新执行 SAVE，并再次与 OFF 基线比较 token ID。旧存档不保证跨版本可移植。

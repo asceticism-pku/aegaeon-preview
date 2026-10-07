@@ -1,6 +1,6 @@
 # Request Schema Fields
 
-Generation requests inherit `GreedyGenerationRequest`. Chat and Completion tables list added or overridden fields. Accepted values are also subject to [generation parameter validation](generation.md).
+Generation requests inherit fields from `GreedyGenerationRequest`. The Chat and Completion tables list only fields they add or override. Accepted values must also pass [generation parameter validation](generation.md).
 
 ## FunctionDefinition
 
@@ -109,7 +109,7 @@ Generation requests inherit `GreedyGenerationRequest`. Chat and Completion table
 | parallel_tool_calls | `bool \| None` | `None` |
 | logprobs | `bool \| None` | `False` |
 | top_logprobs | `int \| None` | `0` |
-| mm_processor_kwargs | `dict[str, Any] \| None` | `None`; reserved field, multimodal input is unsupported |
+| mm_processor_kwargs | `dict[str, Any] \| None` | `None`; passed to the vLLM renderer/processor for content-part input; public validation covers text only |
 
 ## CompletionRequest
 

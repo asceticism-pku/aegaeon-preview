@@ -2,7 +2,7 @@
 
 ## Greedy decoding
 
-The Worker selects argmax directly from logits, so accepted sampling values must be equivalent to greedy decoding. Supplying seed does not enable random sampling.
+The Worker takes argmax directly from logits, so accepted sampling values must be equivalent to greedy decoding. Supplying `seed` does not enable random sampling.
 
 | Parameter | Accepted values |
 |---|---|
@@ -23,9 +23,9 @@ The Worker selects argmax directly from logits, so accepted sampling values must
 
 ## Output length
 
-Chat defaults to max_tokens=128; Completion defaults to 16. Chat also accepts max_completion_tokens. When both are supplied, they must match. The length must be at least 1.
+Chat defaults to `max_tokens=128`; Completion defaults to `max_tokens=16`. Chat also accepts `max_completion_tokens`. If both limits are supplied, they must match. The selected limit must be at least 1.
 
-Context length includes prompt and generated tokens. `max_tokens` is an output limit, not a guaranteed count: EOS, stop tokens, string stops, or the context boundary can end output earlier.
+Prompt and generated tokens both count toward context length. `max_tokens` caps output; EOS, stop tokens, string stops, or the context boundary can end it earlier.
 
 ## Stopping and decoding
 
@@ -40,18 +40,18 @@ Context length includes prompt and generated tokens. `max_tokens` is an output l
 | spaces_between_special_tokens | Defaults to true; forwarded to tokenizer.decode |
 | return_token_ids | Defaults to false; adds token ID fields to responses |
 
-Matched EOS and stop tokens are removed from visible text. `usage.completion_tokens` counts processed token IDs; string truncation re-encodes text, so this value uses a different basis from raw Worker steps.
+Matched EOS and stop tokens are removed from visible text. `usage.completion_tokens` counts processed token IDs. When a stop string truncates the decoded text, the API re-encodes that text for the count instead of counting raw Worker steps.
 
 `finish_reason` is `stop` or `length` for ordinary text generation. `stop` means EOS, a stop token, or a stop string matched. `length` means the backend completed the request's length budget, which already accounts for remaining context space. Chat uses `tool_calls` when a function call is parsed successfully.
 
 ## Prompt truncation
 
-`truncate_prompt_tokens` accepts a positive integer, -1, or null. The plain-text `_truncate_prompt` keeps the input unchanged for -1. A positive value keeps the end by default; `truncation_side='right'` keeps the beginning. The public interface supports this text path only.
+`truncate_prompt_tokens` accepts a positive integer, -1, or null. For plain text, `_truncate_prompt` leaves the input unchanged when the value is -1. A positive value keeps the end by default; `truncation_side='right'` keeps the beginning. The public interface supports this text path only.
 
 `add_special_tokens` defaults to false in Chat and true in Completion. Chat defaults to add_generation_prompt=true. Setting continue_final_message=true requires add_generation_prompt=false.
 
 ## Request and user identifiers
 
-`request_id` and `user` are accepted by the request schema but do not provide user authentication, cross-process idempotency, or priority scheduling. The backend generates its own internal request ID. These fields do not make repeated execution safe.
+The request schema accepts `request_id` and `user`. Neither field provides user authentication, cross-process idempotency, or priority scheduling. The backend generates its own internal request ID, so these fields do not make repeated execution safe.
 
 See [request fields](request-schema.md) for the complete schema and defaults.

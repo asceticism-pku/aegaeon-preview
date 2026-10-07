@@ -28,6 +28,18 @@ export AEGAEON_DEFAULT_MODEL_REPO=huggingface
 
 主服务会向 actors 传递部分 MODEL_ROOT/PROXY 环境变量，当前下载函数只使用下载 SDK 识别的标准设置。网络代理请配置 `HTTP_PROXY` 和 `HTTPS_PROXY`，离线部署直接填写本地 `path`。
 
+## 下载与代理排障
+
+已有完整本地 checkpoint 时无需下载。Hugging Face 下载失败时，可先检查连通性；需要代理时在下载命令所在 shell 设置实际可用的地址：
+
+```bash
+export HTTPS_PROXY=http://127.0.0.1:7890
+export HTTP_PROXY="$HTTPS_PROXY"
+curl -fsS --max-time 20 https://huggingface.co/api/models/Qwen/Qwen3-4B >/dev/null
+```
+
+代理地址仅为示例，请按环境替换；可直接访问时省略代理设置。若代理环境中 Xet 权重下载超时，可设置 `export HF_HUB_DISABLE_XET=1` 改用标准 HTTP 下载。`hf download` 因网络中断退出时，重新执行相同命令和 `--local-dir` 继续下载，完成后再启动服务。
+
 ## 模型配置
 
 当前 ModelConfig 固定使用 bf16（每参数按 2 bytes 估计）、`trust_remote_code=True`、`model_impl='auto'`、`quantization=None`、`revision=None`，并向 vLLM 设置 `enforce_eager=True`。YAML 暴露的模型选项以配置参考表为准，其中省略 dtype、量化和 revision。
