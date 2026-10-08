@@ -16,7 +16,7 @@ free -h
 df -h /dev/shm
 ```
 
-`nvidia-smi` shows the CUDA version supported by the driver. The installer checks driver compatibility before installing packages, prepares a matching compiler, and performs a real CUDA operation.
+`nvidia-smi` shows the maximum CUDA version supported by the driver, not the installed CUDA Toolkit version. Before package installation, the script requires a driver branch number of at least 525. It verifies a real CUDA operation after installation. The branch check is an initial filter; see the [NVIDIA CUDA compatibility requirements](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html) for the full conditions.
 
 ## Install
 
@@ -28,7 +28,7 @@ conda activate aegaeon
 bash scripts/install-quickstart.sh
 ```
 
-The installer prepares an independent Conda package cache and installs a matching CUDA Toolkit, GCC/G++, and Rust into the active environment. It uses the classic solver to avoid the Conda cache-lock errors seen in the tested environment. You do not need to enter toolchain versions manually. See [troubleshooting](troubleshooting.md) if installation fails.
+The installer installs a matching CUDA Toolkit, GCC/G++, and Rust into the active environment. If `CONDA_PKGS_DIRS` is unset, it uses `$HOME/.conda/pkgs-aegaeon` as the package cache. Toolchain installation uses the classic solver. You do not need to enter toolchain versions manually. See [troubleshooting](troubleshooting.md) if installation fails.
 
 The installer sets `CUDA_HOME`, installs vLLM and its required PyTorch dependency, repository dependencies and the matching CuPy package, and builds `aegaeon.ops` and `quick_model_loader` with CUDA/C++ and Rust/Cargo. A local CUDA Toolkit is still required to compile the extensions and must match the PyTorch CUDA build. The installer checks versions, runs a real CUDA operation, imports the extensions and core components, and runs `pip check`. After all checks pass, it prints `Aegaeon quickstart installation verified`.
 

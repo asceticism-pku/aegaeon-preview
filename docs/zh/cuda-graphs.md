@@ -17,7 +17,7 @@ Aegaeon 使用开源项目 [Foundry](https://github.com/foundry-org/foundry) 负
 3. 批次中的最大序列长度不超过 `seq_len_buckets` 中配置的上限；
 4. 当前模型的图已经成功录制或恢复。
 
-其余情况直接执行 eager forward，不会导致请求失败。是否命中以 Worker 日志中的 `Foundry decode replay active` 为准。
+未命中上述图条件时，执行 eager forward。是否命中以 Worker 日志中的 `Foundry decode replay active` 为准。
 
 ## 安装 Foundry
 
@@ -90,7 +90,7 @@ export AEGAEON_FOUNDRY_HOOK_PATH="$(python -c 'from pathlib import Path; import 
 test -f "$AEGAEON_FOUNDRY_HOOK_PATH"
 ```
 
-`libcuda_hook.so` 必须在 Worker 进程启动前通过 `LD_PRELOAD` 装载；Aegaeon 会根据 `AEGAEON_FOUNDRY_HOOK_PATH` 为 Ray Worker 设置该环境。多节点部署时，每个运行 Decode Worker 的节点都要单独安装 Foundry，并提供该节点上的绝对路径。
+`libcuda_hook.so` 必须在 Worker 进程启动前通过 `LD_PRELOAD` 装载；Aegaeon 会根据 `AEGAEON_FOUNDRY_HOOK_PATH` 为 Ray Worker 设置该环境。多节点部署时，每个运行 Decode Worker 的节点都要安装 Foundry。API 进程设置的 hook、compat 和 `LD_LIBRARY_PATH` 会统一传给各节点；这些绝对路径必须在所有目标节点上同名有效。当前 NodeConfig 未提供每节点 hook 或 compat 路径覆盖。
 
 自定义 Boost 路径、CUDA forward-compatibility 库和常见加载错误见[故障排查](troubleshooting.md)。
 

@@ -11,7 +11,7 @@ Configuration has three main sections: `server`, `models`, and `devices`. `aegae
 | host / port | CLI passes directly to uvicorn; server YAML does not read these fields |
 | Ray address | `--ray-address` → `AEGAEON_RAY_ADDRESS` → `RAY_ADDRESS` → `auto` |
 | Startup models | `--models` → `server.startup_models` → all configured models |
-| tensor_parallel_size | Must be 1; an explicit non-null CLI value wins, otherwise YAML / ServerConfig |
+| tensor_parallel_size | Must be 1; a nonzero CLI value wins; unset or 0 reads YAML / ServerConfig |
 | Engine counts, CPU slabs, weight cache size | Normal startup uses ServerConfig; corresponding CLI values mainly serve as fallbacks |
 | SLO | Environment variables read at utils import, not server YAML |
 
@@ -43,7 +43,7 @@ These are class defaults. Size production budgets from host memory, model count,
 | startup_models | null | null=all models; []=empty service |
 | cuda_graph | CudaGraphConfig() | Disabled by default; see below |
 
-Default CPU KV capacity is 128 GiB per node, in addition to the CPU weight cache and loader buffers. Hosts below these budgets need smaller slab and cache settings.
+Default CPU KV capacity is 128 GiB per node, in addition to the CPU weight cache, mapped weight files, and process memory. Hosts below these budgets need smaller slab and cache settings.
 
 A P/D topology needs at least one Prefill Engine and one Decode Engine. Simple mode instead sets `num_engines>0` and both P/D Engine counts to 0.
 
@@ -54,11 +54,12 @@ A P/D topology needs at least one Prefill Engine and one Decode Engine. Simple m
 | name | Required | Client-facing model name; need not match the profile folder |
 | path | Empty string | Local weights; when unset, ModelSpec.path() triggers download |
 | params | null | **Input multiplied by 2^30 to obtain parameter count** |
-| profile | Empty string | Performance directory alias; otherwise normalized from the model ID's last segment |
+| profile | Empty string | Performance directory alias; otherwise normalized from the model name's last segment |
 | max_model_len | null | Total context length override, still subject to model capability |
-| id | Unset | Generated sequentially when all are omitted; when explicit, supply it for every model |
+| id | Unset | Generated sequentially when all are omitted; when explicit, supply an ID for every model |
+| tool_parser | null | Nonempty vLLM tool parser name; explicitly selects generated function-call parsing for a model alias |
 
-`params: 4` means `4 × 2^30` parameters. Usually omit params so the registry reads weight metadata. If that fails, supply a value from actual tensor counts. Model entries parse only the fields above; GPU clock fields currently never reach ModelSpec.
+`params: 4` means `4 × 2^30` parameters. Usually omit params so the registry reads weight metadata. If that fails, divide the actual total parameter count by `2^30` before setting `params`. Model entries parse only the fields above; GPU clock fields currently never reach ModelSpec.
 
 ## Device entries
 
@@ -70,7 +71,7 @@ A P/D topology needs at least one Prefill Engine and one Decode Engine. Simple m
 | profile | Retained in DeviceSpec.extra as a performance directory alias |
 | Other fields | Retained in DeviceSpec.extra; only fields read by an implementation have an effect |
 
-PCIe generation and width provide a bandwidth estimate. Use profiling data for measured H2D bandwidth. Omitting devices leaves the registry empty; runtime code uses NVML to inspect the current GPU.
+PCIe generation and width provide a bandwidth estimate. Use profiling data for measured H2D bandwidth. Omitting devices leaves the registry empty. Runtime detection uses PyTorch CUDA for GPU names and capacity and NVML for a PCIe bandwidth estimate. Configure the device explicitly in YAML if device queries or bandwidth detection fail.
 
 ## CUDA graph defaults and constraints
 
@@ -82,8 +83,8 @@ PCIe generation and width provide a bandwidth estimate. Use profiling data for m
 | seq_len_buckets | [128,256,512,1024,2048] | Class accepts multiple; **Worker save/load currently requires exactly one maximum-length bucket** |
 | strict | true | Controls strict checks such as initialization scratch bounds; ABI/layout/binding checks always run |
 | base_address | 0x400000000000 | Positive and 2 MiB aligned; accepts a quoted hexadecimal string |
-| region_size_bytes | 274877906944 | 256 GiB virtual address range |
-| scratch_size_bytes | 4294967296 | 4 GiB; must be smaller than region_size_bytes |
+| region_size_bytes | 274877906944 | 256 GiB virtual address range; positive and 2 MiB aligned |
+| scratch_size_bytes | 4294967296 | 4 GiB; positive, 2 MiB aligned, and smaller than region_size_bytes |
 
 Normal Simple execution does not enable the Foundry hook. Use P/D Decode to test this integration. See [CUDA Graphs](cuda-graphs.md).
 

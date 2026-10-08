@@ -21,7 +21,7 @@
 
 提高 memory_utilization 会增加估计 KV 预算，同时压缩临时开销的安全空间。model_cache_size_gb 控制 CPU 权重缓存，GPU KV 容量由 memory_utilization 等 GPU 侧配置决定。nnodes 表示物理节点数。缩容时先 undeploy，再按目标 replica_count 重新部署。
 
-增加 Engine 会同时增加 GPU、Ray CPU 和 pinned cache 需求。Simple 与 P/D 应使用目标负载分别测量，选择 E2E、TTFT、TPOT 和吞吐更符合目标的一种。
+增加 Engine 会增加 GPU 和 Ray CPU 需求。同一 Controller 的 Engine 共享按 slab 配置的 CPU KV 缓存；增加节点或并发时重新评估 pinned cache 容量。Simple 与 P/D 应使用目标负载分别测量，选择 E2E、TTFT、TPOT 和吞吐更符合目标的一种。
 
 ## 图模式
 
@@ -29,7 +29,7 @@
 
 ## Profile可信度
 
-profile 与硬件、驱动、频率和模型版本一一对应。调优前确认真实 batch 和长度分布位于采集范围。当前只支持 TP=1。
+profile 应在目标硬件、驱动、频率和模型版本下采集；当前目录只按模型和设备区分，版本与频率需另行记录。调优前确认真实 batch 和长度分布位于采集范围。当前估计器只支持 TP=1。
 
 ## 变更验收
 

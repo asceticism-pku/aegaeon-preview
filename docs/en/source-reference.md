@@ -46,6 +46,7 @@ In `aegaeon/llm.py`, `_default_cuda_compat_paths` probes CUDA compatibility-libr
 | `aegaeon/simple_scheduler.py` | `calculate_decode_quotas`, `SimpleScheduler` |
 | `aegaeon/stage_engine.py` | `Stage`, `StepOutput`, `StageEngine`, `PrefillEngine`, `DecodeEngine`, `SimpleEngine` |
 | `aegaeon/test_api.py` | `send_request`, `main` |
+| `aegaeon/tool_calls.py` | `ToolParserError`, `ParsedToolCalls`, `ToolCallStreamUpdate`, `_default_call_id`, `resolve_tool_parser`, `_is_inside_thinking`, `_parse_function`, `_parse_xml_function`, `_parse_tool_call_body`, `normalize_tool_call_messages`, `_load_vllm_tool_parser_components`, `_as_mapping`, `_normalize_extracted_calls`, `parse_tool_calls_with_vllm`, `parse_tool_calls`, `_partial_marker_suffix_length`, `ToolCallStreamParser` |
 | `aegaeon/utils.py` | `_DeviceNamespace`, `set_device_registry`, `Counter`, `set_random_seed`, `prod`, `get_distributed_init_method`, `get_ip`, `get_open_port`, `make_tensor_with_pad`, `estimate_switch_time`, `reduce_shared_cpu_tensor`, `rebuild_shared_cpu_tensor`, `reduce_cuda_event`, `rebuild_cuda_event`, `get_logits_processor`, `get_lm_head`, `compute_request_metrics`, `compute_request_latencies`, `ensure_infile`, `ensure_outfile`, `get_tokenizer` |
 | `aegaeon/vllm_cache.py` | `CacheSegment`, `CompositeCache`, `make_composite_config`, `initialize_composite_cache` |
 | `aegaeon/worker.py` | `_guard_vllm_c_rms_norm`, `Worker`, `_init_worker_distributed_environment` |

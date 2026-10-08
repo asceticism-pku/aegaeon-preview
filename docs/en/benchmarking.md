@@ -18,16 +18,17 @@
 python benchmark/demo_api.py --help
 python benchmark/demo_api.py \
   --host 127.0.0.1 --port 8000 \
-  --model-config /srv/aegaeon/config.yaml --arrival-rate 0.1 --duration 60
+  --model-config /srv/aegaeon/config.yaml --model Qwen/Qwen3-4B \
+  --arrival-rate 0.1 --duration 60
 ```
 
-This tool connects to a running API and writes benchmark/demo-output.json, overwriting that path on subsequent runs. Check model selection, actual input lengths, and parameters before using it for an experiment.
+This tool connects to a running API; replace the example model name with a configured, deployed model. It writes benchmark/demo-output.json, overwriting that path on subsequent runs. Default arrival intervals are exponentially distributed and models rotate; timed mode fixes max_tokens=500, while `--max-tokens` applies only to `--single`. Input is fixed text: the CSV input_tokens field is read but does not construct the prompt. Streaming results count nonempty text chunks in `tokens`; nonstreaming results use usage.completion_tokens. Distinguish these units in reports.
 
 ## Limitations of historical scripts
 
 The end-to-end replay script is `benchmark/benchmark_e2e_from_workload.py`.
 
-Its Ray address is fixed to the original experimental cluster, and NodeConfig P/D and cache values are set in the script. Change both to the current cluster and target configuration before use.
+Its Ray address is fixed to the original experimental cluster. Each node fixes 1 Prefill + 1 Decode and model_cache_size=0, with CPU slab counts supplied by a command argument; these settings are not read from the YAML server topology. Change the address and topology to the current cluster and target configuration before use.
 
 CSV fields are request_id, timestamp, input_tokens, and output_tokens. Models are assigned from a seed, and prompts are slices of a fixed pre-encoded token list. Inputs beyond that list become shorter, and decode length follows a 4096-based truncation rule. This script therefore measures its transformed workload; report the actual prompt and output lengths.
 

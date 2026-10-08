@@ -2,7 +2,7 @@
 
 ## 本地 checkpoint
 
-请将模型下载到各节点一致的绝对路径，并显式配置 `path`。目录应包含完整 config、tokenizer 文件、模型所需的 chat template / generation config，以及全部 safetensors 或其他受加载器支持的权重分片。
+请将模型下载到各节点一致的绝对路径，并显式配置 `path`。目录应包含完整 config、tokenizer 文件、模型所需的 chat template / generation config，以及完整的 safetensors 权重分片；主服务的 QuickCache/QuickLoader 路径只读取 safetensors。
 
 模型名用于客户端请求，profile 别名用于性能数据，path 用于真实权重。例如：
 
@@ -38,13 +38,13 @@ export HTTP_PROXY="$HTTPS_PROXY"
 curl -fsS --max-time 20 https://huggingface.co/api/models/Qwen/Qwen3-4B >/dev/null
 ```
 
-代理地址仅为示例，请按环境替换；可直接访问时省略代理设置。若代理环境中 Xet 权重下载超时，可设置 `export HF_HUB_DISABLE_XET=1` 改用标准 HTTP 下载。`hf download` 因网络中断退出时，重新执行相同命令和 `--local-dir` 继续下载，完成后再启动服务。
+代理地址仅为示例，请按环境替换；可直接访问时省略代理设置。若代理环境中 Xet 权重下载超时，在启动下载进程前设置 `export HF_HUB_DISABLE_XET=1` 禁用 hf-xet 路径，详见[上游环境变量说明](https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables#hfhubdisablexet)。`hf download` 因网络中断退出时，重新执行相同命令和 `--local-dir` 完成下载；保留 `.cache/huggingface` metadata 可复用已完整且未更新的文件，详见[上游下载说明](https://huggingface.co/docs/huggingface_hub/en/guides/cli#download-to-a-local-folder)。完成后再启动服务。
 
 ## 模型配置
 
 当前 ModelConfig 固定使用 bf16（每参数按 2 bytes 估计）、`trust_remote_code=True`、`model_impl='auto'`、`quantization=None`、`revision=None`，并向 vLLM 设置 `enforce_eager=True`。YAML 暴露的模型选项以配置参考表为准，其中省略 dtype、量化和 revision。
 
-省略 `max_model_len` 时，系统从模型 config 的候选长度字段中取最小已知值；候选为空时抛出异常。override 只设置服务侧上限，模型的 RoPE 和训练上下文能力仍由权重与模型配置决定。
+省略 `max_model_len` 时，系统从模型 config 的候选长度字段中取最小已知值；候选为空时读取 tokenizer 的 `model_max_length`。长度为无限值或至少 `10**30` 的占位值时回退到 2048。override 只设置服务侧上限，模型的 RoPE 和训练上下文能力仍由权重与模型配置决定。
 
 ## EOS 与聊天模板
 
@@ -56,7 +56,7 @@ Chat 使用 tokenizer 的 apply_chat_template。当前 API 对归一化名称含
 
 显式 profile 推荐保持稳定且使用安全相对别名。未设置时，`Qwen/Qwen3.5-9B` 可规范化为 `qwen3_5_9b`。绝对路径或 `..` 路径片段会被拒绝。
 
-参数量自动计算会读取权重 metadata；读取失败时再手工填写 params，并按 [2^30 换算](configuration.md)。自动 CPU 权重缓存估算为参数量 × 2 × 1.2；实际 GPU 峰值还需计入加载与运行时开销。
+显式 `params` 优先于自动计算，按 [2^30 换算](configuration.md) 后用于估算。省略该字段时，自动计算会遍历 checkpoint 根目录中所有 `.safetensors` 文件的张量形状并求元素总数；没有这类文件或读取失败时，需显式提供 `params`。自动 CPU 权重缓存估算为参数量 × 2 × 1.2；实际 GPU 峰值还需计入加载与运行时开销。
 
 ## 新文本模型验收
 
@@ -67,4 +67,4 @@ Chat 使用 tokenizer 的 apply_chat_template。当前 API 对归一化名称含
 5. 按目标用途检查并发、P/D、多副本、sliding window、MLA 或 Mamba 状态。
 6. 使用 Foundry 时完成 SAVE/LOAD、模型切换和 token ID 对比。
 
-六项检查全部通过后，模型才能进入该部署环境的可用清单。当前验收清单面向文本模型。
+按部署目标完成上述适用检查后，再将模型加入该环境的可用清单。这是文本模型的验收流程；其他输入类型需增加对应的处理和推理检查。

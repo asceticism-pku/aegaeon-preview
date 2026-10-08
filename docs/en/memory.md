@@ -7,9 +7,9 @@
 | CPU weight cache | Model weight slices in QuickCache | model_cache_size_gb |
 | CPU KV | Request KV slabs, shared mappings, pinned memory | cpu_num_slabs × cpu_slab_size_bytes |
 | GPU | Active model, KV, prefetch, operator workspace, temporary tensors | memory_utilization contributes to the estimate |
-| Other CPU memory | Python, Ray, tokenizer, metadata, loader pinned buffers | Not fully covered by the budgets above |
+| Other CPU memory | Python, Ray, tokenizer, metadata, mapped weight files | Not fully covered by the budgets above |
 
-The gb suffix in the CPU weight cache setting actually means GiB, multiplying by 1024^3. QuickLoaderConfig defaults pinned_buffer_size to 4 GiB; it is not a general server YAML option. Include process and operating-system headroom in total CPU memory planning.
+The gb suffix in the CPU weight cache setting means GiB, multiplying by 1024^3. Workers register the CPU KV and QuickCache shared mappings as pinned memory. QuickLoaderConfig retains `pinned_buffer_size=4 GiB`, but the separate pinned-allocator allocation path is commented out in the current QuickLoader, so this field does not represent an additional allocated 4 GiB buffer. Include process and operating-system headroom in total CPU memory planning.
 
 ## Automatic weight cache sizing
 
@@ -21,7 +21,7 @@ A model enters the cache only when both total free bytes and the slice layout fi
 
 ModelConfig estimates KV capacity from configured device capacity × memory_utilization minus the active model and optional prefetched model sizes. Weight estimates assume bf16, TP partitioning, and alignment. Nonpositive remaining capacity raises MemoryError.
 
-Actual GPU peaks also include temporary loading, attention workspace, graph inputs, buffers, and runtime initialization. memory_utilization is neither a hard cap nor identical to vLLM's native parameter. Raising it blindly can worsen OOM risk.
+Actual GPU peaks also include temporary loading, attention workspace, graph inputs, buffers, and runtime initialization. memory_utilization enters the Aegaeon budget formula without imposing a hard allocation cap on the CUDA allocator. Higher values allocate less headroom outside the estimate.
 
 ## KV blocks
 
@@ -31,7 +31,7 @@ For conventional attention, a logical block estimate uses layer count, 16 tokens
 
 ## Shared memory
 
-The default directory is `/dev/shm`; AEGAEON_SHM_DIR can override it. Directory capacity, physical host memory, and pinned memory support must all be sufficient. Small default container shm allocations are often inadequate.
+The default directory is `/dev/shm`; AEGAEON_SHM_DIR can override it. Directory capacity, physical host memory, and pinned memory support must all be sufficient. The shared directory holds CPU KV and weight-cache files; size container shared memory from those configured budgets.
 
 ```bash
 df -h /dev/shm
@@ -39,7 +39,7 @@ free -h
 nvidia-smi
 ```
 
-Changing the directory only relocates shared files; pinned-memory capacity stays the same. Cache files retain their existing sizes. Give each service an isolated directory and remove only files created by that instance.
+Changing the directory relocates shared files; pinned memory still consumes host memory. Shared mappings open with the configured length. After changing budgets, stop the instance and check its old files against the new budgets. Give each service an isolated directory and remove only files created by that instance.
 
 ## Transfers and events
 

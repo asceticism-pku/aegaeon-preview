@@ -4,7 +4,7 @@ Aegaeon 欢迎问题反馈、功能建议和代码贡献。你可以帮助完善
 
 ## 问题反馈
 
-在 [GitHub Issues](https://github.com/pkusys/aegaeon/issues) 提交问题时，请提供：
+向项目维护者提交问题时，请提供：
 
 - 期望行为、实际行为以及最小复现步骤。
 - 启动命令、相关配置与请求参数。
@@ -23,9 +23,6 @@ Aegaeon 欢迎问题反馈、功能建议和代码贡献。你可以帮助完善
 
 文档贡献同样欢迎：改进示例、补充解释、修正参数或整理排障经验，都能帮助其他用户更快使用 Aegaeon。
 
-## 项目链接
+## 许可证与项目资料
 
-- [GitHub 仓库](https://github.com/pkusys/aegaeon)
-- [Issues](https://github.com/pkusys/aegaeon/issues)
-- [Pull Requests](https://github.com/pkusys/aegaeon/pulls)
-- [Apache-2.0 许可证](https://github.com/pkusys/aegaeon/blob/main/LICENSE)
+项目许可证为 Apache-2.0，完整条款见源码根目录的 `LICENSE`。代码结构与贡献流程见[开发指南](development.md)，源码定位见[源码参考](source-reference.md)。

@@ -4,14 +4,14 @@
 <div class="hero-wordmark"><svg viewBox="0 0 72 80" aria-hidden="true"><path d="M36 3 69 71H54L36 33 18 71H3Z" fill="#5368d6"/><path d="M27 56h18l7 15H20Z" fill="#91a1ef"/><path d="M36 3 45 22 36 33 27 22Z" fill="#bdc8ff"/></svg><span>Aegaeon</span></div>
 <p class="hero-tagline">Token-Level Inference for Multi-Model Serving</p>
 <p class="hero-subtitle">Serve many LLMs on shared GPUs with token-level scheduling and fast, resumable model switching.</p>
-<div class="hero-actions"><a class="primary-action" href="quickstart.md">Get Started <span aria-hidden="true">→</span></a><a class="secondary-action" href="https://github.com/pkusys/aegaeon">GitHub <span aria-hidden="true">↗</span></a></div>
+<div class="hero-actions"><a class="primary-action" href="quickstart.md">Get Started <span aria-hidden="true">→</span></a><a class="secondary-action" href="source-reference.md">Source Guide <span aria-hidden="true">↗</span></a></div>
 </div>
 
 Aegaeon is a multi-LLM serving system for workloads where many models receive sparse, uneven, or bursty traffic. It pools GPU capacity across models and can pause and resume in-flight generation at token boundaries, so another model can run while earlier requests are still active. This makes GPU sharing practical for a long tail of models and reduces head-of-line blocking from request-level model switching.
 
 Model weights are cached in host memory and prefetched for upcoming execution, while request KV Cache is moved between CPU and GPU as models switch. Together with profile-guided Decode scheduling, these mechanisms let the system reuse the same GPU engines across models without keeping every model resident on the GPU.
 
-The [SOSP '25 paper](https://doi.org/10.1145/3731569.3764815) reports that Aegaeon sustained 2–2.5× the request arrival rate of ServerlessLLM under the evaluated SLO targets. In the paper's Alibaba Cloud Model Studio beta deployment, it reduced the GPU count by 82% (1,192 to 213).
+The [SOSP '25 paper](https://doi.org/10.1145/3731569.3764815) ([author PDF](https://ennanzhai.github.io/pub/sosp25-aegaeon.pdf)) reports that Aegaeon sustained 2–2.5× the request arrival rate of ServerlessLLM under the evaluated SLO targets. In the paper's Alibaba Cloud Model Studio beta deployment, it reduced the GPU count by 82% (1,192 to 213).
 
 ## Start here
 
@@ -30,7 +30,7 @@ The [SOSP '25 paper](https://doi.org/10.1145/3731569.3764815) reports that Aegae
 
 ## Current release
 
-The current release uses vLLM model implementations and compute kernels and serves text-only models with greedy decoding, with Tensor Parallel and Pipeline Parallel fixed at 1. It provides Chat and Completion APIs, SSE streaming, dynamic model management, runtime observability, and model-specific function tool calling through vLLM tool parsers. Multimodal input, random sampling, and quantization configuration are outside the supported scope. See [Features and Compatibility](capabilities.md) for the supported model and interface scope, parallelism constraints, and optional optimizations.
+The validated public support scope covers text-only models with greedy decoding, using vLLM model implementations and compute kernels, with Tensor Parallel and Pipeline Parallel fixed at 1. It provides Chat and Completion APIs, SSE streaming, dynamic model management, runtime observability, and model-specific function tool calling through vLLM tool parsers. Multimodal input, random sampling, and quantization configuration are outside the supported scope. See [Features and Compatibility](capabilities.md) for the supported model and interface scope, parallelism constraints, and optional optimizations.
 
 ## Documentation
 

@@ -2,7 +2,7 @@
 
 ## Local checkpoints
 
-Use the same absolute checkpoint path on every node and configure `path` explicitly. Include the full configuration, tokenizer files, required chat template and generation configuration, and every safetensors or other loader-supported weight shard.
+Use the same absolute checkpoint path on every node and configure `path` explicitly. Include the full configuration, tokenizer files, required chat template and generation configuration, and all safetensors weight shards; the main service's QuickCache/QuickLoader path reads safetensors only.
 
 The model name identifies client requests, the profile alias identifies performance data, and path locates the actual weights:
 
@@ -38,13 +38,13 @@ export HTTP_PROXY="$HTTPS_PROXY"
 curl -fsS --max-time 20 https://huggingface.co/api/models/Qwen/Qwen3-4B >/dev/null
 ```
 
-Replace the example proxy address for your environment, or omit the proxy settings for direct access. If Xet weight downloads time out through the proxy, set `export HF_HUB_DISABLE_XET=1` to use standard HTTP downloads. After a network interruption, rerun the same `hf download` command with the same `--local-dir` to continue; finish downloading before starting the service.
+Replace the example proxy address for your environment, or omit the proxy settings for direct access. If Xet weight downloads time out through the proxy, set `export HF_HUB_DISABLE_XET=1` before starting the download process to disable the hf-xet path; see the [upstream environment reference](https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables#hfhubdisablexet). After a network interruption, rerun the same `hf download` command with the same `--local-dir` to complete the download. Keeping `.cache/huggingface` metadata allows reuse of complete, up-to-date files; see the [upstream download guide](https://huggingface.co/docs/huggingface_hub/en/guides/cli#download-to-a-local-folder). Finish downloading before starting the service.
 
 ## Model configuration
 
 ModelConfig uses bf16, estimates 2 bytes per parameter, and sets `trust_remote_code=True`, `model_impl='auto'`, `quantization=None`, `revision=None`, and vLLM `enforce_eager=True`. YAML has no dtype, quantization, or revision options.
 
-When `max_model_len` is omitted, the service takes the smallest known candidate context length from the model configuration; an empty candidate set raises an exception. The override sets a service-side limit, while RoPE and trained context capability remain properties of the model and weights.
+When `max_model_len` is omitted, the service takes the smallest known candidate context length from the model configuration. If no candidate is present, it reads the tokenizer's `model_max_length`. An infinite length or placeholder of at least `10**30` falls back to 2048. The override sets a service-side limit, while RoPE and trained context capability remain properties of the model and weights.
 
 ## EOS and chat templates
 
@@ -56,7 +56,7 @@ Chat uses the tokenizer's apply_chat_template. For normalized model names contai
 
 Use a stable, safe relative profile alias. Without an explicit alias, `Qwen/Qwen3.5-9B` can normalize to `qwen3_5_9b`. Absolute paths and `..` path segments are rejected.
 
-Parameter counts are computed from weight metadata. Manual params is considered only if that fails; see the [2^30 conversion](configuration.md). Automatic CPU weight cache sizing estimates parameters × 2 × 1.2. This is a capacity approximation rather than actual GPU peak memory.
+Explicit `params` takes precedence over automatic counting and uses the [2^30 conversion](configuration.md) for estimates. Otherwise, counting sums tensor elements from the shapes in all `.safetensors` files at the checkpoint root. Supply `params` explicitly if those files are absent or reading fails. Automatic CPU weight cache sizing estimates parameters × 2 × 1.2. Actual GPU peak memory also includes loading and runtime allocations.
 
 ## Accept a new text model
 
@@ -67,4 +67,4 @@ Parameter counts are computed from weight metadata. Manual params is considered 
 5. Check concurrency, P/D, replicas, sliding windows, MLA, or Mamba state used by the target deployment.
 6. For Foundry, complete SAVE/LOAD, model-switching, and token-ID comparisons.
 
-The model enters that deployment's usable set after all six checks pass. The current support scope covers text models only; multimodal models are excluded from this procedure.
+Complete the checks applicable to the target deployment before adding the model to that environment's usable set. This acceptance procedure covers text models; other input types need corresponding processing and inference checks.

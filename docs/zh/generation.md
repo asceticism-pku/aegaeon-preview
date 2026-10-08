@@ -2,7 +2,7 @@
 
 ## 贪心解码
 
-Worker 计算 logits 后直接取 argmax，所以采样字段只接受与贪心解码一致的值。`seed` 可以通过请求校验，但解码仍采用确定性的 argmax。
+Worker 计算 logits 后直接取 argmax，所以采样字段只接受与贪心解码一致的值。`seed` 可以通过请求校验，但解码仍采用 argmax，不启用随机采样。
 
 | 参数 | 接受的值 |
 |---|---|
@@ -25,7 +25,7 @@ Worker 计算 logits 后直接取 argmax，所以采样字段只接受与贪心�
 
 Chat 的 `max_tokens` 默认为 128，Completion 默认为 16。Chat 也接受 `max_completion_tokens`。若同时设置两个字段，取值必须相等；选定的输出上限至少为 1。
 
-上下文长度包括 prompt 和生成的 token，`max_tokens` 是生成上限。命中 EOS、stop token、字符串 stop 或上下文边界时，生成会提前结束。
+上下文长度包括 prompt 和生成的 token，`max_tokens` 是生成上限。后端在达到输出上限、上下文边界或有效的停止 token（包括 EOS）时结束请求。字符串 `stop` 由 HTTP 层截断可见文本，后端继续执行至自身停止条件。纯文本路径没有在提交前统一拒绝过长 prompt；调用方应确保 prompt token 数小于模型的 `max_model_len`。
 
 ## 停止与解码
 
@@ -36,17 +36,17 @@ Chat 的 `max_tokens` 默认为 128，Completion 默认为 16。Chat 也接受 `
 | ignore_eos | 默认 false；true 跳过 EOS 停止条件，输出上限仍然生效 |
 | min_tokens | 0 到 max_tokens；控制何时接受停止 token / stop |
 | include_stop_str_in_output | 默认 false；是否保留匹配到的 stop 字符串 |
-| skip_special_tokens | 默认 true |
-| spaces_between_special_tokens | 默认 true，传给 tokenizer.decode |
+| skip_special_tokens | 默认 true；启用工具解析时使用 false，以保留工具标记 |
+| spaces_between_special_tokens | 默认 true；启用工具解析时使用 false，其余请求按字段值传给 tokenizer.decode |
 | return_token_ids | 默认 false；返回额外 token ID 字段 |
 
 命中的 EOS 或 stop token 会从可见文本中去除。`usage.completion_tokens` 按处理后的 token IDs 计算。字符串截断时，文本会重新编码，因此这个计数与 Worker 的原始执行步数口径不同。
 
-普通文本生成的 `finish_reason` 为 `stop` 或 `length`：前者表示命中 EOS、stop token 或 stop 字符串，后者表示后端用完本次长度预算。该预算已受上下文剩余空间限制。Chat 成功解析出函数调用时，`finish_reason` 改为 `tool_calls`。
+普通文本生成的 `finish_reason` 为 `stop` 或 `length`：前者表示命中 EOS、stop token 或 stop 字符串，后者表示后端达到 `max_tokens` 或 prompt 与输出合计达到 `max_model_len`。Chat 成功解析出函数调用时，`finish_reason` 改为 `tool_calls`。
 
 ## Prompt 截断
 
-`truncate_prompt_tokens` 可设为正整数、-1 或 null。在纯文本 `_truncate_prompt` 路径中，-1 表示不截断；使用正整数时默认保留末尾，设置 `truncation_side='right'` 则保留开头。当前公开接口只支持这条纯文本路径。
+`truncate_prompt_tokens` 可设为正整数、-1 或 null。在纯文本 `_truncate_prompt` 路径中，-1 表示不截断；使用正整数时默认保留末尾，设置 `truncation_side='right'` 则保留开头。该说明适用于字符串或 token ID prompt；Chat 内容块走 vLLM renderer 的处理路径。
 
 `add_special_tokens` 在 Chat 中默认为 false，在 Completion 中默认为 true。Chat 默认 `add_generation_prompt=true`；设置 `continue_final_message=true` 时，还须设置 `add_generation_prompt=false`。
 

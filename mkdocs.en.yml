@@ -1,8 +1,6 @@
 site_name: Aegaeon
 site_description: Token-Level Inference for Multi-Model Serving
 site_url: https://asceticism-pku.github.io/aegaeon-preview/en/
-repo_url: https://github.com/pkusys/aegaeon
-repo_name: pkusys/aegaeon
 docs_dir: docs/en
 site_dir: site/en
 hooks:

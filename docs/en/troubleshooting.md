@@ -8,9 +8,9 @@ Preserve the full traceback, startup command, YAML, source revision, dependency 
 
 **torch missing during setup**: setup.py imports torch at module scope; install a matching torch first. **Missing aegaeon.ops or undefined symbol**: check that the extension was built with the current torch/CUDA, whether torch changed, and whether nvcc matches the wheel. **Missing quick_model_loader._rlib**: check Rust tooling and the editable extension build. **vLLM internal import errors**: the project uses version-sensitive internal interfaces; check vllm==0.26.0 rather than upgrading indiscriminately.
 
-**Conda reports database is locked**: libmamba's SQLite shard cache failed in the tested environment, even with a private package cache. Use `--solver classic` when creating the environment; the installer already prepares an independent package cache and uses the classic solver for toolchain installation. If Foundry dependency installation still fails in `shards_cache`, prefix that `conda install` command with `CONDA_PLUGINS_USE_SHARDED_REPODATA=false` to disable sharded repodata caching for the command. See the command in [CUDA Graph installation](cuda-graphs.md#install-foundry).
+**Conda reports database is locked**: A lock conflict in libmamba's SQLite shard cache can cause this error. Use `--solver classic` when creating the environment; the installer supplies a separate cache path when `CONDA_PKGS_DIRS` is unset and uses the classic solver for toolchain installation. If Foundry dependency installation still fails in `shards_cache`, prefix that `conda install` command with `CONDA_PLUGINS_USE_SHARDED_REPODATA=false` to disable sharded repodata caching for the command. See the command in [CUDA Graph installation](cuda-graphs.md#install-foundry).
 
-**The installer reports an incompatible driver**: the installer uses CUDA 12.9 builds and checks driver compatibility before installing packages. The GPU and driver must meet CUDA 12.x compatibility requirements. The validated environment is an A100 PCIe 40GB with driver `535.247.01`. PyTorch 2.11.0 is required by vLLM 0.26.0; use the fixed version combination provided by the installer.
+**The installer reports an incompatible driver**: the installer uses CUDA 12.9 builds, requires a driver branch number of at least 525 before installing packages, and verifies real CUDA execution afterward. This branch check is only an initial filter; the GPU, exact driver version, and CUDA features used by the application must meet the [NVIDIA CUDA 12.x compatibility requirements](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html). PyTorch 2.11.0 is required by vLLM 0.26.0; use the fixed version combination provided by the installer.
 
 **CUDA Toolkit/compiler mismatch**: local extensions still require a CUDA Toolkit matching the PyTorch CUDA build. Rerun the installer in the intended environment to prepare matching CUDA, GCC/G++, and Rust tooling, then rebuild the extensions.
 
@@ -19,7 +19,7 @@ Preserve the full traceback, startup command, YAML, source revision, dependency 
 The installation script already checks CUDA execution, core imports, and dependency consistency. To diagnose a failed installation or an environment change, rerun these checks in the active environment:
 
 ```bash
-python -c "import torch, vllm; print(torch.__version__, vllm.__version__, torch.version.cuda); print(torch.ones(1, device='cuda'))"
+python -c "from importlib.metadata import version; import torch, vllm; print(torch.__version__, version('vllm'), torch.version.cuda); print(torch.ones(1, device='cuda'))"
 python -c "import torch, quick_model_loader._rlib, aegaeon.ops; from aegaeon import LLMService, NodeConfig, Request; print('core imports OK')"
 aegaeon --help
 aegaeon start --help
@@ -51,7 +51,7 @@ ulimit -Sl
 ulimit -Hl
 ```
 
-One A100 validation passed with a 64 MiB hard memlock limit; use actual startup results to determine the limits needed in other environments. Adjust service or container limits if needed, then restart Ray.
+Preserve the specific host-registration error and inspect both shared-memory capacity and service or container resource limits. Use the traceback to identify the failing constraint and restart Ray after changes.
 
 ## Models and profiles
 
@@ -65,7 +65,7 @@ One A100 validation passed with a 64 MiB hard memlock limit; use actual startup 
 
 ## Foundry
 
-**NumPy import failure / NP_SUPPORTED_MODULES**: the NumPy package installed by Conda requires the environment's `libstdc++`. For an `NP_SUPPORTED_MODULES` error, first inspect earlier NumPy or `GLIBCXX_*` import errors in the full traceback. Add `$CONDA_PREFIX/lib` to `LD_LIBRARY_PATH` before starting Python. If an older driver also needs a compatibility library, keep that library first and Conda `lib` second, then start a fresh process:
+**NumPy import failure / NP_SUPPORTED_MODULES**: loading the system `libstdc++` can fail when NumPy's dependencies require a newer version. For an `NP_SUPPORTED_MODULES` error, first inspect earlier NumPy or `GLIBCXX_*` import errors in the full traceback. Add `$CONDA_PREFIX/lib` to `LD_LIBRARY_PATH` before starting Python. If an older driver also needs a compatibility library, keep that library first and Conda `lib` second, then start a fresh process:
 
 ```bash
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"

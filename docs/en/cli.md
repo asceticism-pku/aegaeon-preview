@@ -17,7 +17,7 @@ aegaeon start --config /srv/aegaeon/config.yaml --host 127.0.0.1 --port 8000 --r
 | --num-prefill-engines | 1 | Normal startup uses YAML ServerConfig |
 | --num-decode-engines | 1 | Same |
 | --num-engines | 0 | Same |
-| --tensor-parallel-size | None | Explicit non-null value overrides YAML |
+| --tensor-parallel-size | None | Explicit nonzero value overrides YAML; 0 falls back to YAML |
 | --model-cache-size-gb | 20 | Fallback CPU weight capacity in GiB |
 | --cpu-num-slabs | 15 | Fallback slab count |
 | --cpu-slab-size-gb | 1 | Fallback size in GiB |
@@ -43,7 +43,7 @@ aegaeon deploy Qwen/Qwen3-4B --nodes node_0 node_1
 | --nodes | None | Explicit node IDs; bypass automatic placement |
 | --tool-parser | None | vLLM tool-parser override for this model alias |
 
-The client uses HTTPConnection with a 300-second timeout. After HTTP 200, inspect JSON `status`, `failed`, and `ready_nodes` to distinguish complete success from partial success.
+The client uses HTTPConnection with a 300-second timeout. For HTTP 200 with JSON `status=partial` or a nonempty `failed`, the CLI reports partial completion and exits with status 1; it prints success only for a complete result. When calling HTTP directly, inspect `status`, `failed`, and `ready_nodes`.
 
 ## undeploy
 
@@ -59,7 +59,7 @@ aegaeon undeploy Qwen/Qwen3-4B
 | --port | 8000 | API port |
 | --nodes | All known replicas | Unload only the listed nodes |
 
-Busy replicas enter DRAINING and appear as partial failures; run undeploy again after their requests finish. Use runtime replica and cache state to confirm release.
+Busy replicas enter DRAINING and appear as partial failures; the CLI exits with status 1. Run undeploy again after their requests finish. Use runtime replica and cache state to confirm release.
 
 ## Queries
 

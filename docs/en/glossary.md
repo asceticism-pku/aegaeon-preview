@@ -17,7 +17,7 @@
 | TTFT | Time To First Token; identify the observation layer |
 | TPOT | Time Per Output Token; specify timing and treatment of the first token |
 | HOL blocking | Earlier work blocks subsequent work |
-| CV | Population standard deviation / mean |
+| CV | Population standard deviation / mean; the implementation returns 0 for an empty set or zero mean |
 | Foundry SAVE/LOAD | Capture/restore graphs, device code, and deterministic layouts |
 | GiB | 2^30 bytes; several gb settings actually use this unit |
 
@@ -35,7 +35,7 @@ Deploying weights into CPU cache does not imply GPU loading, initialization, or 
 
 ## Are CUDA Graphs enabled by default?
 
-No; the default is off. The current integration needs P/D Decode, Foundry and its hook, one length bucket, and matching archives. Setting mode=load alone is insufficient.
+No; the default is off. SAVE/LOAD use P/D Decode, TP=1, Foundry and its hook, and one length bucket. LOAD additionally requires matching archives. Setting mode=load alone is insufficient.
 
 ## Can inference run natively on Windows or CPU?
 

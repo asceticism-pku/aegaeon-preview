@@ -9,7 +9,7 @@ Replace model paths, GPU devices, and profile aliases before use, and adjust bud
 | multi-node.yaml | Two physical nodes, 1 Simple Engine per node |
 | dynamic.yaml | Empty startup followed by explicit deployment |
 | work-stealing.yaml | One node, 1P+2D |
-| foundry-save.yaml / foundry-load.yaml | P/D Decode, batch=1, one 4096 bucket; requires Foundry, hook, and archives |
+| foundry-save.yaml / foundry-load.yaml | P/D Decode, batch=1, one 4096 bucket; requires Foundry and the hook; SAVE creates archives, LOAD requires complete archives |
 | chat-request.json | Minimal nonstreaming greedy request |
 
 ```bash

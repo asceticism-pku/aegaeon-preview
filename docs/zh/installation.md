@@ -16,7 +16,7 @@ free -h
 df -h /dev/shm
 ```
 
-`nvidia-smi` 显示驱动支持的 CUDA 版本；安装脚本会在安装包之前检查驱动兼容性，准备匹配的编译器并执行真实 CUDA 运算。
+`nvidia-smi` 显示驱动支持的最高 CUDA 版本；它不表示本机已安装的 CUDA Toolkit 版本。安装脚本在安装包之前要求驱动分支号至少为 525，安装后再执行真实 CUDA 运算。驱动分支检查只是初步筛选，完整兼容条件见 [NVIDIA CUDA 兼容说明](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)。
 
 ## 安装
 
@@ -28,7 +28,7 @@ conda activate aegaeon
 bash scripts/install-quickstart.sh
 ```
 
-安装脚本会在当前 Conda 环境中自动准备匹配的 CUDA Toolkit、GCC/G++ 和 Rust，并使用独立包缓存与 classic solver 规避测试环境出现过的 Conda 缓存锁问题，无需手动输入工具链版本；故障处理见[故障排查](troubleshooting.md)。
+安装脚本会在当前 Conda 环境中自动准备匹配的 CUDA Toolkit、GCC/G++ 和 Rust，无需手动输入工具链版本。未设置 `CONDA_PKGS_DIRS` 时，脚本使用 `$HOME/.conda/pkgs-aegaeon` 作为包缓存，并使用 classic solver 安装工具链；故障处理见[故障排查](troubleshooting.md)。
 
 安装脚本设置 `CUDA_HOME`，安装 vLLM 及其要求的 PyTorch、仓库依赖和匹配的 CuPy 包，并使用 CUDA/C++ 和 Rust/Cargo 编译 `aegaeon.ops` 与 `quick_model_loader`。本地 CUDA Toolkit 仍用于编译扩展，必须与 PyTorch 的 CUDA 构建匹配。脚本包含版本检查、真实 CUDA 运算、扩展和核心组件导入检查及 `pip check`，全部通过后会输出 `Aegaeon quickstart installation verified`。
 

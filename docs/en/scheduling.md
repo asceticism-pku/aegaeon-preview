@@ -12,15 +12,18 @@ SimpleScheduler handles Prefill and Decode in the same engine. Decode quotas use
 
 ## P/D mode
 
-PrefillDispatcher implements fcfs-avgload and sjf-avgload paths. PrefillScheduler currently selects through `policy='uni'`. NodeConfig retains the related fields, while ServerConfig YAML does not map these options.
+PrefillDispatcher implements `fcfs-avgload`. The `sjf-avgload` policy branch remains a stub whose enqueue/dequeue methods raise `NotImplementedError`. PrefillScheduler selects the single-request batch implementation through `policy='uni'`. NodeConfig retains the related fields, while ServerConfig YAML does not map these options.
 
 DecodeScheduler manages model batches, rounds/turns, and alpha/quotas. Work Stealing moves one complete batch at a safe boundary after a round; it does not replace the quota formula.
 
 ## SLO settings
 
+LLMService does not explicitly forward these two variables to actors. For an existing Ray cluster, set identical values on every node before starting Ray, and execute these exports in the API process environment as well. See [Deployment](deployment.md) for Ray startup.
+
 ```bash
-AEGAEON_TTFT_SLO=3 AEGAEON_TPOT_SLO=0.03 \
-  aegaeon start --config /srv/aegaeon/config.yaml --ray-address 127.0.0.1:6789
+export AEGAEON_TTFT_SLO=3
+export AEGAEON_TPOT_SLO=0.03
+aegaeon start --config /srv/aegaeon/config.yaml --ray-address 127.0.0.1:6789
 ```
 
 TTFT defaults to 10 seconds and TPOT to 0.1 seconds. utils reads them during import, so changes require restarting the relevant processes. LLMService's actor environment allowlist omits these variables; set identical values in every node process environment for multi-node and existing Ray deployments.

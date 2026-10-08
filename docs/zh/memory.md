@@ -7,9 +7,9 @@
 | CPU 权重缓存 | QuickCache 缓存模型权重 slices | model_cache_size_gb |
 | CPU KV | 请求 KV slab、共享映射、pinned memory | cpu_num_slabs × cpu_slab_size_bytes |
 | GPU | active model、KV、prefetch、算子 workspace、临时张量 | memory_utilization 参与估算 |
-| 其他 CPU | Python、Ray、tokenizer、metadata、loader pinned buffer 等 | 单独计入进程与系统余量 |
+| 其他 CPU | Python、Ray、tokenizer、metadata、权重文件映射等 | 单独计入进程与系统余量 |
 
-CPU 权重 cache 参数名的 gb 实际乘以 1024^3，即 GiB。QuickLoaderConfig 默认 pinned_buffer_size 为 4 GiB，当前 server YAML 保持该内部默认值。CPU 总预算必须加上进程与系统余量。
+CPU 权重 cache 参数名的 gb 实际乘以 1024^3，即 GiB。Worker 会把 CPU KV 与 QuickCache 的共享映射注册为 pinned memory。QuickLoaderConfig 虽保留 `pinned_buffer_size=4 GiB`，当前 QuickLoader 的独立 pinned allocator 分配路径已注释，因此该字段不代表额外分配的 4 GiB 缓冲区。CPU 总预算必须加上进程与系统余量。
 
 ## 自动权重 cache
 
@@ -21,7 +21,7 @@ model_cache_size_gb>0 使用指定大小；为 0 且有启动模型时按参数�
 
 ModelConfig 以设备配置容量 × memory_utilization 减去当前模型与可选预取模型大小，估计可用 KV 字节；权重估算按 bf16、TP 划分并对齐。若剩余<=0 会抛 MemoryError。
 
-实际 GPU 峰值还包括临时加载、attention workspace、图输入、buffers 和 runtime 初始化。memory_utilization 用于 Aegaeon 的预算估算，语义与 vLLM 同名参数有所区别。遇到 OOM 时应先拆分各项占用，再调整预算并复测。
+实际 GPU 峰值还包括临时加载、attention workspace、图输入、buffers 和 runtime 初始化。memory_utilization 用于 Aegaeon 的预算公式，并未设置 CUDA allocator 的硬性分配上限。遇到 OOM 时应先拆分各项占用，再调整预算并复测。
 
 ## KV block
 
@@ -31,7 +31,7 @@ Aegaeon 逻辑 BLOCK_SIZE 当前固定为 16 tokens，YAML 省略该配置项。
 
 ## 共享内存
 
-默认共享目录为 `/dev/shm`，可通过 AEGAEON_SHM_DIR 指定。目录空间、主机物理内存与 pinned memory 条件都要满足；容器默认小 shm 经常不足。
+默认共享目录为 `/dev/shm`，可通过 AEGAEON_SHM_DIR 指定。目录空间、主机物理内存与 pinned memory 条件都要满足；共享目录需要容纳 CPU KV 和权重缓存文件，容器部署应按配置预算设置共享内存容量。
 
 ```bash
 df -h /dev/shm
@@ -39,7 +39,7 @@ free -h
 nvidia-smi
 ```
 
-更换目录会改变共享文件位置，pinned memory 容量仍由主机内存配置决定。缓存文件会保留原有大小；每个服务应使用独立目录，并只清理由该实例创建的文件。
+更换目录会改变共享文件位置，pinned memory 仍占用主机内存。共享映射按配置请求的长度打开；调整预算后，应在停止该实例后核对旧文件与新预算。每个服务应使用独立目录，并只清理由该实例创建的文件。
 
 ## 搬运与事件
 

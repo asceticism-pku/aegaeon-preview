@@ -12,7 +12,7 @@
 | benchmark/, tools/ | Benchmark and specialized test tools; each script documents its parameters and environment |
 | tests/ | Control logic and GPU-dependent tests |
 | sim/ | SimPy policy simulation |
-| plots/, workloads/ | Plots and workload resources |
+| plots/ | Plot scripts; prepare workload files at the paths required by each tool |
 | web/ | Built-in pages |
 | docs/zh/, docs/en/ | Chinese and English documentation and examples |
 
@@ -22,7 +22,7 @@ The main project uses Apache-2.0. Preserve license information for additional co
 
 Wire configuration through parsing → configuration classes → API creation → Ray environment / Controller → Engine/Worker. Cover success paths, failure paths, scope, defaults, and limitations together.
 
-Extend models and devices through registries/YAML; `ModelType` and `DeviceType` are no longer enums. A new KV type needs tests for descriptions, block counts, transfer layouts, sliding windows, and state restoration.
+Extend models and devices through registries/YAML. `aegaeon.models.ModelType` and `aegaeon.utils.DeviceType` are namespaces preserving older attribute access. A new KV type needs tests for descriptions, block counts, transfer layouts, sliding windows, and state restoration.
 
 ## Validation layers
 
@@ -30,7 +30,7 @@ Extend models and devices through registries/YAML; `ModelType` and `DeviceType` 
 2. Mocked control plane: deployment, reservation release, busy rejection, partial failures, and SSE cleanup.
 3. One real GPU model: loading, EOS, context, correct output, and shutdown.
 4. Model switching/concurrency: cache transfers, request conservation, identical outputs, and resource recovery.
-5. Target topology: P/D, multiple nodes, Work Stealing, and Foundry. The release scope fixes TP at 1 and supports text input only.
+5. Target topology: P/D, multiple nodes, Work Stealing, and Foundry. Use a TP=1 baseline. See [capabilities](capabilities.md) for model and input-type scope; new input types need corresponding processing and inference tests.
 
 `tests/` contains both pure-logic tests and tests that require real models and CUDA. Select test files according to their documented dependencies.
 

@@ -21,7 +21,7 @@ Start with TP=1, graphs disabled, one model, and explicit budgets. Measure actua
 
 Increasing memory_utilization raises the estimated KV capacity while reducing headroom for temporary allocations. model_cache_size_gb controls the CPU weight cache; GPU KV capacity comes from GPU-side settings such as memory_utilization. nnodes counts physical nodes. To scale down, undeploy the model and deploy the target replica count.
 
-More Engines require additional GPUs, Ray CPUs, and pinned-cache capacity. Measure Simple and P/D with the target workload, then choose from E2E, TTFT, TPOT, and throughput results.
+More Engines require additional GPUs and Ray CPUs. Engines within one Controller share the CPU KV cache configured by its slabs; reassess pinned-cache capacity when adding nodes or concurrency. Measure Simple and P/D with the target workload, then choose from E2E, TTFT, TPOT, and throughput results.
 
 ## Graph mode
 
@@ -29,7 +29,7 @@ List every actual batch size in `batch_sizes`; replay uses an exact batch-size m
 
 ## Profile reliability
 
-Profiles are specific to hardware, drivers, clocks, and model versions. Confirm that production batch and length distributions fall within the collected range. The current release supports TP=1 only.
+Collect profiles on the target hardware, driver, clocks, and model version. Current directories distinguish only model and device; record versions and clocks separately. Confirm that production batch and length distributions fall within the collected range. The current estimators support TP=1 only.
 
 ## Validate each change
 

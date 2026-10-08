@@ -2,7 +2,7 @@
 
 ## Power sampling
 
-`GET /v1/aegaeon/gpu-power` collects GPU samples through nvidia-smi. The NvidiaSmi layer parses device identifiers, power, clocks, and related fields. A command failure or empty query produces an empty `gpus` list, with the reason written to the service log.
+`GET /v1/aegaeon/gpu-power` collects GPU samples through nvidia-smi. Each sample contains index, timestamp, power_w, sm_clock_mhz, mem_clock_mhz, and utilization_gpu_pct; unsupported numeric values are `null`. A missing executable or failed command returns an empty `gpus` list and logs a warning. Empty stdout also produces an empty list.
 
 This endpoint queries the API host rather than all GPUs across the cluster. Power in W differs from energy in J. Energy evaluation requires integration over a defined interval, with a sampling frequency and idle baseline, alongside real completed-token counts.
 
@@ -18,7 +18,9 @@ The service currently **does not support per-model clock settings through models
 
 ## Experimental tools
 
-tools/ includes gpu_clock_search.py, pd_clock_search.py, energy_request.py, and aegaeon-gpu-clock; benchmark/ includes benchmark_energy.py. Read --help and script prerequisites to understand clock changes, output paths, and model settings. These tools do not provide an automatic energy-aware scheduling feature.
+`tools/gpu_clock_search.py`, `tools/pd_clock_search.py`, and `benchmark/benchmark_energy.py` provide `--help`. Check clock changes, output paths, and model settings before experiments. `tools/energy_request.py` is a request helper module. `tools/aegaeon-gpu-clock` accepts `<gpu_id> set <min_mhz> <max_mhz>` or `<gpu_id> reset`. These experimental tools do not provide automatic energy-aware scheduling.
+
+Currently, `energy_request.py` counts nonempty SSE text chunks in `tokens` and their arrival intervals in `per_token`. Clock-search and energy scripts derive rates and SLO results from these fields; label results as chunk-based. Real energy/token and token-level TPOT require complete token counts and timing data. Multi-sample integration in `benchmark_energy.py` covers only the first-to-last valid sample interval; one sample is multiplied by the experiment duration. Retain the sample coverage interval and measure boundary coverage and the idle baseline for reports.
 
 ## Reporting results
 

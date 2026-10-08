@@ -41,7 +41,7 @@ curl -sS http://127.0.0.1:8000/v1/models/undeploy \
   -d '{"model":"Qwen/Qwen3-4B","node_ids":["node_0"]}'
 ```
 
-Deploy accepts `model` (required), `model_path`, `max_model_len`, `node_ids`, `replica_count` (at least 1; default 1), and `tool_parser`. Undeploy uses the same schema but reads only `model` and `node_ids`. For a model with existing replicas, `model_path` retains its original value. Changing `max_model_len` triggers forced deployment; `tool_parser` only updates parser metadata for the model alias.
+Deploy accepts `model` (required), `model_path`, `max_model_len`, `node_ids`, `replica_count` (at least 1; default 1), and `tool_parser`. Undeploy uses the same schema but reads only `model` and `node_ids`. For a model already in the deployed-model registry, omitting `model_path` retains its original path; supplying a different path returns 400. Changing `max_model_len` triggers forced deployment; `tool_parser` only updates parser metadata for the model alias.
 
 Full and partial success both return HTTP 200, with JSON `status` set to `ok` or `partial`. Deploy responses include `ready_nodes`, `failed`, and operation results; undeploy responses include `remaining_nodes`, `failed`, and operation results. Check `status` to see whether every node succeeded. If all deployment targets fail and no READY replica remains, the endpoint returns 507. See [model lifecycle](model-management.md).
 
@@ -68,7 +68,7 @@ With `return_token_ids=true`, nonstreaming Chat returns prompt_token_ids at the 
 
 With `stream=true`, the server sends SSE as `data: <JSON>` and ends with `data: [DONE]`. Setting `stream_options.include_usage=true` adds a usage chunk with `choices=[]` before the end. Chat chunks use `delta`; Completion chunks use `text`.
 
-When a tool parser is enabled, Chat buffers generated text until completion, then emits parsed `delta.content` and/or `delta.tool_calls`. Text is therefore not guaranteed to arrive token by token. If no call is parsed successfully, the response can remain ordinary text. See [online inference](serving.md#common-integration-issues) for tool requirements.
+When a tool parser is enabled, Chat buffers generated text until completion, then emits parsed `delta.content` and/or `delta.tool_calls`. Text is therefore not guaranteed to arrive token by token. When the parser returns no valid structured call, the response retains ordinary text; parser exceptions follow the internal-error path. See [online inference](serving.md#common-integration-issues) for tool requirements.
 
 ## Runtime and metrics
 
@@ -101,4 +101,4 @@ Generation and tokenizer requests use `extra="forbid"`, so undeclared fields suc
 
 `/aegaeon_console.html`, `/aegaeon_chat.html`, and `/aegaeon_docs.html` are built-in static pages. The main entry and `/demo` redirect to pages. Documentation is maintained in `docs/zh` and `docs/en`; regenerate the built-in page with `docs/build_portable.py` after edits. See [documentation maintenance](development.md#documentation-maintenance).
 
-The demo proxy routes `/v1/serverlessllm/models`, `/v1/serverlessllm/gpu-power`, and `/v1/serverlessllm/chat/completions` target an external service configured by `SERVERLESSLLM_URL` (default `127.0.0.1:8343`). They are not native Aegaeon inference features or benchmark results.
+The demo routes `/v1/serverlessllm/models` and `/v1/serverlessllm/chat/completions` proxy an external service configured by `SERVERLESSLLM_URL` (default `http://127.0.0.1:8343`). `/v1/serverlessllm/gpu-power` directly samples GPUs on the API host. Upstream proxy responses do not establish native Aegaeon inference features or benchmark results.

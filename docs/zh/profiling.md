@@ -1,6 +1,6 @@
 # Profiling 与时延估计
 
-PrefillEstimator 和 DecodeEstimator 使用目标 GPU 上真实采集的 JSON 拟合 LinearRegression。缺少有效样本时会抛出 FileNotFoundError；请先完成采集，再启动依赖 profile 的服务。
+PrefillEstimator 和 DecodeEstimator 使用目标 GPU 上真实采集的 JSON 拟合 LinearRegression。找不到可用于拟合的 profile 数据时会抛出 FileNotFoundError；JSON 格式错误或单点样本不足会在读取或计算时失败；请先完成采集，再启动依赖 profile 的服务。
 
 ## 目录
 
@@ -17,6 +17,8 @@ profiles/
 
 JSON 需要包含采样器和估计器使用的 prefill_latencies、decode_latencies 等字段。时延提取会排序、去掉首尾值再取平均，因此每组至少采集 3 个样本；实际测量建议增加重复次数。
 
+采集器直接运行 vLLM 的 `LLM`，不是 Aegaeon HTTP 服务。prefill 样本取 batch 中首个请求的 `first_token_ts - scheduled_ts`；decode 样本取该请求首末 token 间隔除以生成 token 数减一，单位均为秒。默认执行 4 次预热和 12 次采样，并使用 `[0, 10000)` 的随机 token ID；用于该脚本的模型需包含这些有效 ID。
+
 ## 批量采集 TP=1
 
 ```bash
@@ -25,7 +27,7 @@ CUDA_VISIBLE_DEVICES=0 python profiles/do_profile.py --model-config /srv/aegaeon
 
 脚本枚举输入长度16到4096、batch集合及过滤条件，调用 benchmark/benchmark_latency.py，以 bf16、enforce_eager、gpu-memory-utilization=0.90、max-model-len=8192 采集。它会遍历配置中的全部模型，不按 startup_models 限制。
 
-批量脚本固定使用 max-model-len=8192 和 gpu-memory-utilization=0.90。原生上下文小于 8192 的模型或显存容量不足的设备应改用单点采集命令。脚本通过 shell 启动子命令，完成后需要检查日志和输出 JSON 的样本数。
+批量脚本请求 max-model-len=8192 和 gpu-memory-utilization=0.90；底层采集器在 vLLM 初始化抛出 `ValueError` 时会去掉 max-model-len 再试一次。使用单点命令可显式设置目标长度和预算，并核对 vLLM 实际采用的长度。批量脚本通过 shell 启动子命令，路径会直接拼接进命令且子命令退出码未被检查；使用无空格及 shell 特殊字符的路径，结束后逐项核对日志、JSON 和样本数。stderr 保留在终端，文件主要记录 stdout。
 
 ## 单点采集
 
@@ -33,7 +35,7 @@ CUDA_VISIBLE_DEVICES=0 python profiles/do_profile.py --model-config /srv/aegaeon
 mkdir -p profiles/qwen3_4b/A100-PCIE-40GB
 CUDA_VISIBLE_DEVICES=0 python benchmark/benchmark_latency.py \
   --model /srv/models/Qwen3-4B --dtype bfloat16 --enforce-eager \
-  --tensor-parallel-size 1 --max-model-len 4096 \
+  --tensor-parallel-size 1 --max-model-len 4096 --gpu-memory-utilization 0.90 \
   --input-len 32 --output-len 10 --batch-size 1 \
   --output-json profiles/qwen3_4b/A100-PCIE-40GB/i32b1.json
 ```

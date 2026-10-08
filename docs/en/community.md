@@ -4,7 +4,7 @@ Aegaeon welcomes bug reports, feature proposals, and contributions. Help improve
 
 ## Report an issue
 
-When submitting [GitHub Issues](https://github.com/pkusys/aegaeon/issues), include:
+When reporting an issue to the project maintainers, include:
 
 - Expected behavior, actual behavior, and minimal reproduction steps.
 - Startup commands, relevant configuration, and request parameters.
@@ -23,9 +23,6 @@ Read the [developer guide](development.md) for project layout and validation pra
 
 Documentation improvements are welcome: clearer examples, explanations, parameter corrections, and troubleshooting experience help others use Aegaeon.
 
-## Project links
+## License and project references
 
-- [GitHub repository](https://github.com/pkusys/aegaeon)
-- [Issues](https://github.com/pkusys/aegaeon/issues)
-- [Pull Requests](https://github.com/pkusys/aegaeon/pulls)
-- [Apache-2.0 license](https://github.com/pkusys/aegaeon/blob/main/LICENSE)
+The project uses the Apache-2.0 license; the full terms are in `LICENSE` at the source root. See the [developer guide](development.md) for the code layout and contribution workflow, and [source reference](source-reference.md) for implementation locations.

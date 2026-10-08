@@ -6,13 +6,14 @@ The package lazily exports `LLMService`, `NodeConfig`, and `Request`. The Python
 
 ## Synchronous inference example
 
-Run this example from the repository root on Linux with CUDA, usable profiles, and sufficient Ray resources:
+Complete [installation](installation.md), adapt the model path, device, and profiles in `docs/en/examples/simple.yaml`, and start a Ray cluster at `127.0.0.1:6789` with the custom resource `node_0`; see [environment setup](environment.md). Run this example from the repository root on Linux with CUDA:
 
 ```python
 import os
 import time
 import ray
 from aegaeon import LLMService, NodeConfig, Request
+from aegaeon.config import get_model_config
 from aegaeon.models import set_model_registry
 from aegaeon.model_registry import get_registry
 from aegaeon.utils import get_tokenizer
@@ -23,7 +24,7 @@ set_model_registry(config_path)
 ray.init(address='127.0.0.1:6789')
 spec = get_registry().get_by_name('Qwen/Qwen3-4B')
 assert spec is not None
-spec.path()
+model_config = get_model_config(spec)
 tokenizer = get_tokenizer(spec.path())
 
 service = LLMService([
@@ -46,6 +47,8 @@ request = Request(
     request_id=0,
     prompt_token_ids=tokenizer.encode('KV Cache is'),
     decode_tokens=16,
+    eos_token_ids=model_config.eos_token_ids,
+    max_model_len=model_config.max_model_len,
 )
 try:
     outputs = service.serve([request])
@@ -65,12 +68,12 @@ The example passes token IDs for a Completion-style request. Chat callers must a
 |---|---|
 | LLMService(cluster_config, model_placement_policy=None, request_routing_policy=None) | Initializes Controllers and event loops, waiting synchronously for initialization |
 | serve(requests) | Reserves a node for each request, submits concurrently via `asyncio.run`, and releases the reservation; returns `StepOutput` lists or exception objects per request; cannot be called directly inside a running event loop |
-| replay(out_path, ...) | Replays by request arrival time and writes project statistics; see the implementation for timing and QoS definitions |
+| replay(result_file, num_models, arrival_rate, ...) | Replays by request arrival time and writes project statistics; see the implementation for timing and QoS definitions |
 | deploy_model_replicas(...) | Async replica deployment |
 | undeploy_model_replicas(...) | Async replica unloading |
 | reserve_node / release_node_reservation | Tracks routing reservations for HTTP requests; direct callers must release each reservation |
 | request_routing_snapshot / model_placement_stats_snapshot | Current and cumulative statistics |
-| reset() | Calls each node's reset, resets BlockManager, Prefill/Decode Dispatchers and engines, and clears request outputs/model mappings; does not stop Ray |
+| reset() | Legacy helper; its Controller implementation references reset methods absent from Dispatchers and Engines. Reset a running service by stopping the process, confirming resource release, and restarting |
 
 `NodeConfig` defines each Controller's resources and policies. `node_id`, `num_prefill_engines`, and `num_decode_engines` are required. `model_cache_size` is in bytes; the server YAML setting uses GiB.
 

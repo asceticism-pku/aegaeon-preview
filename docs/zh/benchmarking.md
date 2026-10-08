@@ -18,16 +18,17 @@
 python benchmark/demo_api.py --help
 python benchmark/demo_api.py \
   --host 127.0.0.1 --port 8000 \
-  --model-config /srv/aegaeon/config.yaml --arrival-rate 0.1 --duration 60
+  --model-config /srv/aegaeon/config.yaml --model Qwen/Qwen3-4B \
+  --arrival-rate 0.1 --duration 60
 ```
 
-该工具连接已经启动的 API，结果会写到 benchmark/demo-output.json，重复运行会覆盖同一路径。它是示例负载工具；应先核对模型筛选、输入长度与参数，再用于实验。
+该工具连接已经启动的 API；示例模型名需替换为配置中已部署的模型名。结果写到 benchmark/demo-output.json，重复运行会覆盖同一路径。默认到达间隔服从指数分布、按模型轮转，普通定时模式固定 max_tokens=500；`--max-tokens` 只作用于 `--single`。输入是固定文本，CSV 的 input_tokens 被读取但未用于构造输入。流式结果的 `tokens` 是非空文本 chunk 数，非流式结果取 usage.completion_tokens；实验报告需区分两种口径。
 
 ## 当前历史脚本的边界
 
 端到端重放脚本为 `benchmark/benchmark_e2e_from_workload.py`。
 
-`benchmark/benchmark_e2e_from_workload.py` 的 Ray 地址固定为原实验集群，NodeConfig 的 P/D 和 cache 参数也在脚本中设置。使用前应改成当前集群地址和目标配置。
+`benchmark/benchmark_e2e_from_workload.py` 的 Ray 地址固定为原实验集群，每节点固定 1 Prefill + 1 Decode、model_cache_size=0，CPU slab 数来自命令参数；这些设置不会从 YAML 的 server 拓扑读取。使用前应改成当前集群地址和目标配置。
 
 CSV 字段为 request_id、timestamp、input_tokens、output_tokens。脚本按 seed 随机分配模型，并从固定预编码 token 列表切片；超出列表长度的输入会变短，decode 长度还受 4096 规则截断。因此该脚本测量的是经过脚本转换的工作负载，报告中应使用实际 prompt 和输出长度。
 
@@ -39,6 +40,7 @@ CSV 字段为 request_id、timestamp、input_tokens、output_tokens。脚本按 
 4. 所有副本按实验定义一致预热；零预热实验则保持冷启动。
 5. OFF/LOAD 或策略A/B 交替顺序，多次重复，记录P50/P95与样本数。
 6. 核对输出token IDs、请求完成数、异常数、资源与退出清理。
+7. 保留原始日志、响应、配置和结果，对失败样本明确标记。
 
 ## 专项工具
 

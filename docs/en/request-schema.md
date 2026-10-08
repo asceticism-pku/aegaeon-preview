@@ -6,10 +6,10 @@ Generation requests inherit fields from `GreedyGenerationRequest`. The Chat and 
 
 | Field | Type | Default / constraints |
 |---|---|---|
-| name | `str` | `Required`; 1–64 letters, digits, underscores, or hyphens |
+| name | `str` | `Required`; 1–64 ASCII letters, digits, underscores, or hyphens |
 | description | `str \| None` | `None` |
 | parameters | `dict[str, Any]` | Empty object; JSON Schema for function arguments |
-| strict | `bool \| None` | `None` |
+| strict | `bool \| None` | `None`; tool metadata; the server does not implement constrained decoding controlled by this field |
 
 ## FunctionTool
 

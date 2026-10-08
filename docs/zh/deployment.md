@@ -68,7 +68,7 @@ Controller / Worker 会清除 Ray 设置的 CUDA_VISIBLE_DEVICES，然后依据 
 
 多节点应使用一致的 GPU 编号和可见集合。driver 的物理 GPU 编号会传播给 actors，因此每台节点都要提供对应设备。生产拓扑使用真实 Ray 节点资源。
 
-每 Worker 的 CPU 资源由 `worker_num_cpus` 控制。增加 Engine 后应同步提供足够的 Ray CPU 资源；`ray status` 会显示等待资源的 actors。
+每 Worker 的 CPU 资源由 `worker_num_cpus` 控制。每节点的 Engine placement groups 需要 `Engine 总数 × worker_num_cpus` 个 Ray CPU 资源，Controller 还需要可调度的默认 actor CPU 资源。增加 Engine 后应同步提供足够资源；`ray status` 可用于检查资源需求。GPU 分配由 Aegaeon 的 device ID 映射管理，Worker 的 Ray options 未申请 `num_gpus`，因此还需在部署侧独占所选 GPU。
 
 ## 停止与隔离
 
@@ -78,4 +78,4 @@ Controller / Worker 会清除 Ray 设置的 CUDA_VISIBLE_DEVICES，然后依据 
 
 ## 容器 / Kubernetes
 
-仓库当前发布源码安装方式，未发布标准 Docker 镜像或 Helm chart。自定义镜像需要匹配 CUDA/驱动接口，配置 shared memory 和 pinned memory，挂载模型/profile，并为 Ray 使用一致的 namespace。发布前执行真实文本请求和退出清理测试。
+本文使用源码安装方式；仓库内未提供标准 Dockerfile 或 Helm chart。自定义镜像需要匹配 CUDA/驱动接口，配置 shared memory 和 pinned memory，挂载模型/profile，并为 Ray 使用一致的 namespace。发布前执行真实文本请求和退出清理测试。

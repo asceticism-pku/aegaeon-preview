@@ -6,10 +6,10 @@ Chat 和 Completion 请求都继承 `GreedyGenerationRequest`。各自的表格�
 
 | 字段 | 类型 | 默认值与约束 |
 |---|---|---|
-| name | `str` | `必填`；1–64 个字母、数字、下划线或连字符 |
+| name | `str` | `必填`；1–64 个 ASCII 英文字母、数字、下划线或连字符 |
 | description | `str \| None` | `None` |
 | parameters | `dict[str, Any]` | 空对象；函数参数的 JSON Schema |
-| strict | `bool \| None` | `None` |
+| strict | `bool \| None` | `None`；工具元数据，服务端未实现由该字段控制的约束解码 |
 
 ## FunctionTool
 

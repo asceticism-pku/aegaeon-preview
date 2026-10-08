@@ -26,7 +26,7 @@ one physical node for its complete Prefill and Decode lifetime.
 ## Request routing
 
 For a model with multiple `READY` replicas, the API process reserves the node
-with the fewest outstanding routed requests. Equal-load nodes use the request
+with the fewest outstanding routed requests across all models. Equal-load nodes use the request
 ID as a deterministic rotating tie-breaker, so an idle replica set is filled
 evenly without a shared round-robin counter.
 
@@ -83,7 +83,7 @@ by:
 The load term is the maximum of the Controller's active-request count and the
 API-side outstanding reservation count. This covers requests that have been
 routed but are not yet visible to the remote Controller without counting the
-same in-flight request twice. Both source values and the effective value are
+same in-flight request twice when the two counts describe the same requests. The maximum is a snapshot heuristic; different request sets can make it lower than their union. Both source values and the effective value are
 included in the latest placement decision snapshot.
 
 The fit check uses the node-local QuickCache allocator and safetensors slice
@@ -92,8 +92,10 @@ bytes alone.
 
 Eviction cost follows the existing QuickCache eviction order, skips models with
 active requests, and simulates freeing their exact allocator slices in a copy
-of the current memory table until the target slice layout fits. It is a
-placement-time estimate; the deployment response still reports the models
+of the current memory table until the target slice layout fits. If the slices
+still do not fit after removable models are exhausted, enough aggregate free
+bytes makes the estimate eligible for the Controller's defragmentation path.
+It is a placement-time estimate; the deployment response reports the models
 actually evicted.
 
 `replica_count` is a minimum. Existing `READY` replicas are retained, and the
@@ -158,7 +160,7 @@ while the latter describes execution state observed on the physical node.
 
 ## Single-host logical-node smoke test
 
-The manual smoke test can represent several Ray nodes on one host while giving
+The manual smoke test represents several logical Controllers on one physical Ray node while giving
 each Controller an isolated GPU and shared-memory directory. For four logical
 nodes on physical GPUs 4--7, run:
 
@@ -168,10 +170,13 @@ CUDA_VISIBLE_DEVICES=4,5,6,7 python benchmark/model_placement_gpu_smoke.py \
   --gpus 4,5,6,7
 ```
 
-The script deploys one replica per logical node, routes one request to every
-replica, verifies the runtime events, unloads the replicas, and removes its
-temporary Ray and shared-memory directories. It is intentionally excluded from
-pytest because it requires real model weights and one free GPU per engine.
+The balanced scenario deploys one replica per logical node, routes one request
+to every replica, verifies runtime events, unloads replicas, and cleans its
+temporary Ray and shared-memory directories in `finally`. It requires real
+weights and one free GPU per engine. `build_config()` fixes the primary model
+parameter count at `7.1 × 2^30` and the device at A100 80 GiB. Before using other
+models or GPUs, adjust these values and the memory budgets and supply matching
+performance profiles.
 
 To exercise two logical P/D nodes with one Prefill and one Decode GPU each:
 
@@ -218,8 +223,10 @@ second real model during an active request with:
 ```
 
 The primary model is cached on both logical nodes and request ID 0 keeps
-`node_0` busy. `least-loaded` must place the probe on idle `node_1`, while the
-`round-robin` control starts at `node_0`. The result includes the candidate
+`node_0` busy. If both nodes fit the probe with equal eviction cost,
+`least-loaded` selects idle `node_1`, while the `round-robin` control starts
+at `node_0`. The probe scenario asserts this selection, so its model and cache
+budgets must satisfy that condition. The result includes the candidate
 metrics, selected node, lifecycle counters, and deployment duration.
 
 ## Failure semantics

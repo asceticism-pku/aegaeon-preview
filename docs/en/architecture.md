@@ -27,7 +27,7 @@ Simple and P/D are mutually exclusive modes. The diagram shows alternative paths
 
 ## Control plane
 
-The API handles schemas, tokenizers, chat templates, string stops, streaming deltas, access statistics, and model operations. LLMService manages Controllers, replica placement, request reservations, and model operations.
+The API handles schemas, tokenizers, chat templates, string stops, streaming deltas, access statistics, and model operations. LLMService manages Controllers, replica placement, request reservations, and model operations. Its least-outstanding routing compares each node's unfinished reservations across all models.
 
 Each Controller is an asynchronous Ray actor maintaining Dispatchers, Schedulers, StageEngines, BlockManager, QuickCache, and events. asyncio schedules work while Workers execute GPU computation; the API process does not compute model forwards directly.
 
@@ -63,7 +63,7 @@ Requests do not migrate across physical nodes. Work Stealing only changes owners
 | Engines / GPU execution | stage_engine.py, worker.py |
 | Scheduling | simple/prefill/decode dispatchers and schedulers |
 | Weight loading | loader/, quick_model_loader/ |
-| KV management | block_manager.py, cache_groups.py, cache_transfer.py, vllm_cache.py, ops/ |
+| KV management | block_manager.py, cache_groups.py, cache_transfer.py, vllm_cache.py, repository-root ops/ |
 | Registration and budgets | config.py, model_registry.py, device_registry.py, estimator.py |
 | Graph restoration | cuda_graph.py, graph_config.py, graph_bindings.py, foundry_runtime.py, foundry/ |
 

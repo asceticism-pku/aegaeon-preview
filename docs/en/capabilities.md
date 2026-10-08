@@ -17,20 +17,20 @@
 | Greedy decoding | Supported. Workers select argmax from logits | `worker.py` |
 | Random sampling / multiple candidates | **Unsupported**; sampling fields accept greedy-equivalent values and `n` is fixed at 1 | `_validate_greedy_parameters` |
 | Logprobs / beam search | **Unsupported** | `api.py` |
-| Multimodal input | **Unsupported**. The public serving scope is text input and text generation | `api.py`, `worker.py` |
+| Multimodal input | **Unsupported** in the validated public scope. Content-part, renderer, and Worker processing paths exist; specific multimodal models are outside that scope | `api.py`, `worker.py` |
 | Prefix caching | **Unsupported**; explicitly disabled in vLLM CacheConfig | `config.py` |
 | Quantization configuration | **Unsupported**; ModelConfig uses `quantization=None` | `config.py` |
 | Decode Work Stealing | Optional and disabled by default; transfers eligible complete batches within one Controller | `decode_dispatcher.py` |
 | Foundry archives | Supported for P/D Decode Workers; Simple Workers use the regular path | `stage_engine.py` |
 | Runtime snapshots and events | JSON snapshots and SSE event streams | `api.py` |
 | Prometheus metrics | **Unsupported** | `api.py` |
-| API key authentication | Supplied by the deployment gateway; Aegaeon omits server-side key validation | `api.py` |
+| API key authentication | Aegaeon omits server-side key validation; configure a deployment gateway when authentication is required | `api.py` |
 
 ## Parallelism constraints
 
 Aegaeon supports only `tensor_parallel_size=1`. The parser accepts larger integers, but the latency estimator executes `assert tp == 1`. The scheduler, KV Cache, and Foundry are also limited to TP=1. Use TP=1 in every deployment configuration, profile, and issue report.
 
-Pipeline Parallel is fixed at 1 as well. To increase throughput, add Simple Engines or Prefill/Decode Engines. Each Engine maps to one Worker and one GPU.
+Pipeline Parallel is fixed at 1 as well. Adding Simple Engines or Prefill/Decode Engines provides more execution units; measure throughput for the workload, model-switching costs, and resource budgets. Each Engine maps to one Worker and one GPU.
 
 ## Model and input scope
 

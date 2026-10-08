@@ -68,7 +68,7 @@ Controller / Worker clear Ray's CUDA_VISIBLE_DEVICES and reset it from AEGAEON_C
 
 Use consistent GPU numbering and visibility on every node. Physical GPU IDs from the driver propagate to actors, so each node must expose the corresponding devices. Production topology uses real Ray node resources.
 
-`worker_num_cpus` controls each Worker's Ray CPU request. Provide enough Ray CPU resources for every Engine; `ray status` reports actors waiting for resources.
+`worker_num_cpus` controls each Worker's Ray CPU request. Per-node Engine placement groups require `total Engine count × worker_num_cpus` Ray CPUs; the Controller also needs the default actor CPU scheduling resource. Provide enough resources when adding Engines and use `ray status` to inspect resource demand. Aegaeon assigns GPUs through its device-ID mapping; Worker Ray options do not request `num_gpus`, so deployment must also give the service exclusive access to the selected GPUs.
 
 ## Shutdown and isolation
 
@@ -78,4 +78,4 @@ Shared memory files and actors use fixed names. Give independent services isolat
 
 ## Containers and Kubernetes
 
-The repository currently ships source installation rather than a standard Docker image or Helm chart. A custom image needs compatible CUDA/driver interfaces, shared and pinned memory, model/profile mounts, and a consistent Ray namespace. Run a real text request and shutdown-cleanup test before release.
+This guide uses source installation; the repository contains no standard Dockerfile or Helm chart. A custom image needs compatible CUDA/driver interfaces, shared and pinned memory, model/profile mounts, and a consistent Ray namespace. Run a real text request and shutdown-cleanup test before release.

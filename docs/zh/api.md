@@ -1,6 +1,6 @@
 # HTTP API 参考
 
-CLI 默认监听 0.0.0.0:8000，下文示例使用 `http://127.0.0.1:8000`。HTTP 服务允许所有 CORS origins、methods 和 headers；公网部署时，网关负责鉴权与访问限制。
+CLI 默认监听 `0.0.0.0:8000`，下文示例使用 `http://127.0.0.1:8000`。HTTP 服务允许所有 CORS origins、methods 和 headers，且不校验 API key；公网部署时应在网关配置鉴权与访问限制。
 
 ## 接口清单
 
@@ -41,7 +41,7 @@ curl -sS http://127.0.0.1:8000/v1/models/undeploy \
   -d '{"model":"Qwen/Qwen3-4B","node_ids":["node_0"]}'
 ```
 
-Deploy 请求包含 `model`（必填）、`model_path`、`max_model_len`、`node_ids`、`replica_count`（至少为 1，默认 1）和 `tool_parser`。Undeploy 使用同一 schema，但只读取 `model` 和 `node_ids`。模型已有副本时，`model_path` 沿用原值；修改 `max_model_len` 会触发 force 部署流程，`tool_parser` 只更新该模型别名的解析器元数据。
+Deploy 请求包含 `model`（必填）、`model_path`、`max_model_len`、`node_ids`、`replica_count`（至少为 1，默认 1）和 `tool_parser`。Undeploy 使用同一 schema，但只读取 `model` 和 `node_ids`。模型已登记为 deployed 时，省略 `model_path` 会沿用原路径，传入不同路径返回 400；修改 `max_model_len` 会触发 force 部署流程，`tool_parser` 只更新该模型别名的解析器元数据。
 
 完整成功和部分成功都返回 HTTP 200，JSON `status` 分别为 `ok` 和 `partial`。部署响应包含 `ready_nodes`、`failed` 和操作结果；卸载响应包含 `remaining_nodes`、`failed` 和操作结果。客户端应读取 `status`，判断是否所有节点都成功。若所有部署目标失败，且没有现存的 READY 副本，接口返回 507。副本状态的变化见[生命周期](model-management.md)。
 
@@ -66,7 +66,7 @@ Chat 响应包含 `id`、`object='chat.completion'`、`created`、`model`、`cho
 
 `stream=true` 时，接口用 `data: <JSON>` 发送 SSE，最后发送 `data: [DONE]`。设置 `stream_options.include_usage=true` 后，结束前还会收到一个 `choices=[]` 的 usage chunk。Chat chunk 使用 `delta`，Completion chunk 使用 `text`。
 
-启用 tool parser 的 Chat 会缓冲生成文本，完成后才发送解析所得的 `delta.content` 和/或 `delta.tool_calls`，因此不保证逐 token 输出。未解析出调用时返回普通文本。工具参数与解析条件见[在线推理](serving.md#常见接入问题)。
+启用 tool parser 的 Chat 会缓冲生成文本，完成后才发送解析所得的 `delta.content` 和/或 `delta.tool_calls`，因此不保证逐 token 输出。解析器未返回有效结构化调用时，响应保留普通文本；解析器抛出的异常按内部错误路径处理。工具参数与解析条件见[在线推理](serving.md#常见接入问题)。
 
 ## Runtime 与监控指标
 
@@ -99,4 +99,4 @@ FastAPI 的 schema 校验错误在 `detail` 中返回列表；显式 `_error()` 
 
 `/aegaeon_console.html`、`/aegaeon_chat.html`、`/aegaeon_docs.html` 为仓库内置静态页面，主入口及 `/demo` 有重定向。文档内容维护于 `docs/zh` 和 `docs/en`，更新后通过 `docs/build_portable.py` 重新生成内置页面，具体命令见[文档维护](development.md#文档维护)。
 
-另有 `/v1/serverlessllm/models`、`/v1/serverlessllm/gpu-power`、`/v1/serverlessllm/chat/completions` 代理演示接口，由 SERVERLESSLLM_URL 指向外部服务（默认 127.0.0.1:8343）。Aegaeon 原生能力以 `/v1/aegaeon/*` 和标准推理路由为准。
+演示路由 `/v1/serverlessllm/models` 和 `/v1/serverlessllm/chat/completions` 代理外部服务，由 `SERVERLESSLLM_URL` 指定上游地址，默认 `http://127.0.0.1:8343`。`/v1/serverlessllm/gpu-power` 直接采样 API 主机的 GPU。代理返回值来自上游服务，不代表 Aegaeon 的原生推理能力或基准结果。

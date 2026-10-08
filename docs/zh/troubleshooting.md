@@ -8,9 +8,9 @@
 
 **setup时找不到torch**：setup.py顶层导入torch；按安装顺序先准备匹配torch再构建。**aegaeon.ops缺失或undefined symbol**：检查扩展是否以当前torch/CUDA构建，环境是否更换过torch，nvcc与wheel是否兼容。**quick_model_loader._rlib缺失**：检查Rust工具链与editable扩展编译结果。**vLLM内部模块导入失败**：主项目使用版本敏感内部接口，检查vllm==0.26.0而不是直接升级到任意最新版。
 
-**Conda 报 database is locked**：测试环境的 libmamba SQLite 分片缓存曾出现该错误，独立包缓存也未完全避免。创建环境时使用 `--solver classic`；安装脚本已自动准备独立包缓存，并在工具链安装时使用 classic solver。 Foundry 依赖安装若仍在 `shards_cache` 报锁冲突，可在该次 `conda install` 命令前加 `CONDA_PLUGINS_USE_SHARDED_REPODATA=false`，关闭分片 repodata 缓存。实际命令见[CUDA Graph 安装步骤](cuda-graphs.md#安装-foundry)。
+**Conda 报 database is locked**：libmamba 的 SQLite 分片缓存锁冲突会触发该错误。创建环境时使用 `--solver classic`；安装脚本在未设置 `CONDA_PKGS_DIRS` 时指定独立包缓存路径，并在工具链安装时使用 classic solver。Foundry 依赖安装若仍在 `shards_cache` 报锁冲突，可在该次 `conda install` 命令前加 `CONDA_PLUGINS_USE_SHARDED_REPODATA=false`，关闭分片 repodata 缓存。实际命令见[CUDA Graph 安装步骤](cuda-graphs.md#安装-foundry)。
 
-**安装脚本提示驱动不兼容**：脚本使用 CUDA 12.9 构建，并在安装包之前检查驱动兼容性；GPU 和驱动须满足 CUDA 12.x 的兼容要求。已验收环境为 A100 PCIe 40GB 与驱动 `535.247.01`。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，请使用安装脚本提供的固定版本组合。
+**安装脚本提示驱动不兼容**：脚本使用 CUDA 12.9 构建，安装包之前要求驱动分支号至少为 525，安装后验证真实 CUDA 运算。分支检查是初步筛选；GPU、驱动具体版本及应用所用 CUDA 功能须满足 [NVIDIA CUDA 12.x 兼容要求](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，请使用安装脚本提供的固定版本组合。
 
 **CUDA Toolkit/编译器不匹配**：本地扩展仍需要与 PyTorch CUDA 构建匹配的 CUDA Toolkit。在目标环境中重新执行安装脚本，准备匹配的 CUDA、GCC/G++ 和 Rust 工具链，再重新编译扩展。
 
@@ -19,7 +19,7 @@
 安装脚本已检查 CUDA 运算、核心导入和依赖一致性；排查安装失败或更换环境后，可在当前环境手动复查：
 
 ```bash
-python -c "import torch, vllm; print(torch.__version__, vllm.__version__, torch.version.cuda); print(torch.ones(1, device='cuda'))"
+python -c "from importlib.metadata import version; import torch, vllm; print(torch.__version__, version('vllm'), torch.version.cuda); print(torch.ones(1, device='cuda'))"
 python -c "import torch, quick_model_loader._rlib, aegaeon.ops; from aegaeon import LLMService, NodeConfig, Request; print('core imports OK')"
 aegaeon --help
 aegaeon start --help
@@ -51,7 +51,7 @@ ulimit -Sl
 ulimit -Hl
 ```
 
-一次 A100 验收在 memlock hard 上限为 64 MiB 时通过；其他环境的限制需求以实际启动结果为准。必要时调整服务或容器限制后重新启动 Ray。
+保留 host registration 的具体错误，同时检查主机共享内存容量、服务或容器的资源限制。根据错误栈定位所触发的限制，调整后重新启动 Ray。
 
 ## 模型与profile
 
@@ -65,7 +65,7 @@ ulimit -Hl
 
 ## Foundry
 
-**NumPy 导入失败 / NP_SUPPORTED_MODULES**：Conda 安装的 NumPy 包要求环境中的 `libstdc++`。遇到后续 `NP_SUPPORTED_MODULES` 错误时，先查看完整 traceback 中较早的 NumPy 或 `GLIBCXX_*` 导入错误。Python 启动前将 `$CONDA_PREFIX/lib` 加入 `LD_LIBRARY_PATH`；旧驱动还需要 compat 时，保持 compat 第一、Conda `lib` 第二，然后重新启动进程：
+**NumPy 导入失败 / NP_SUPPORTED_MODULES**：若 NumPy 的依赖要求比系统版本更新的 `libstdc++`，加载系统旧库会导致导入失败。遇到后续 `NP_SUPPORTED_MODULES` 错误时，先查看完整 traceback 中较早的 NumPy 或 `GLIBCXX_*` 导入错误。Python 启动前将 `$CONDA_PREFIX/lib` 加入 `LD_LIBRARY_PATH`；旧驱动还需要 compat 时，保持 compat 第一、Conda `lib` 第二，然后重新启动进程：
 
 ```bash
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"

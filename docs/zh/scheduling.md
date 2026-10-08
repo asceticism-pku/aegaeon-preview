@@ -12,15 +12,18 @@ SimpleScheduler 在同一引擎完成 Prefill 与 Decode。Decode 配额计算�
 
 ## P/D
 
-PrefillDispatcher 实现 fcfs-avgload 和 sjf-avgload 路径；PrefillScheduler 当前固定通过 `policy='uni'` 选择实现。NodeConfig 保留相关字段，ServerConfig YAML 未映射这些选项。
+PrefillDispatcher 实现 `fcfs-avgload`；`sjf-avgload` 仅保留策略分支，其入队与出队方法抛出 `NotImplementedError`。PrefillScheduler 当前通过 `policy='uni'` 选择单请求批次实现。NodeConfig 保留相关字段，ServerConfig YAML 未映射这些选项。
 
 DecodeScheduler 按模型批次、round/turn、alpha/quota 管理执行。Work Stealing 在 round 结束后的安全边界转移一个完整批次，原有配额公式继续生效。
 
 ## SLO 设置
 
+LLMService 未显式向 actors 转发这两个变量。连接已有 Ray 集群时，应在每个节点启动 Ray 之前先设置相同值；下面的 export 也应在 API 进程所在环境执行。Ray 启动方式见[部署](deployment.md)。
+
 ```bash
-AEGAEON_TTFT_SLO=3 AEGAEON_TPOT_SLO=0.03 \
-  aegaeon start --config /srv/aegaeon/config.yaml --ray-address 127.0.0.1:6789
+export AEGAEON_TTFT_SLO=3
+export AEGAEON_TPOT_SLO=0.03
+aegaeon start --config /srv/aegaeon/config.yaml --ray-address 127.0.0.1:6789
 ```
 
 TTFT 默认 10 秒，TPOT 默认 0.1 秒。utils 在 import 时读取它们；修改后需要重启相关进程。LLMService 的 actor 环境白名单未包含这两个变量，多节点和已有 Ray 集群应在每个节点的进程环境中设置相同值。

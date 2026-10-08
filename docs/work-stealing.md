@@ -36,12 +36,16 @@ The implemented sequence is:
 1. A Decode Scheduler completes all turns in its current round.
 2. If it still owns at least two batches, it enters a synchronous ownership-
    transfer boundary and asks the Decode Dispatcher for one steal decision.
-3. The Dispatcher searches the other Decode Schedulers for idle receivers.
-4. It considers only the donor's non-head, never-started batches
-   (`batch.start_time is None`) whose KV cache is logically resident in CPU
-   memory.
-5. It prefers a candidate matching the receiver's resident model. Remaining
-   ties are deterministic: donor load, engine ID, then queue position.
+3. The Dispatcher searches the other Decode Schedulers for receivers whose
+   batch queues are empty.
+4. It considers only the donor's non-head batches with no iteration in
+   flight (`batch.start_time is None`) and KV cache logically resident in CPU
+   memory. `finish_one_iteration()` clears `start_time` after every step, so
+   this also includes eligible waiting batches that have generated tokens.
+5. It prefers a candidate matching the receiver's resident model. The
+   end-of-round path has a fixed donor and orders remaining choices by
+   receiver engine ID, then queue position. The general selection helper
+   additionally ranks donor batch count and donor engine ID.
 6. Immediately before mutation, all receiver, donor, candidate, ownership, and
    KV-location conditions are revalidated.
 7. At most one complete `BatchedRequests` object is moved. The donor and
@@ -54,15 +58,17 @@ only batch ownership between Decode Schedulers.
 ## Safety invariants
 
 1. A batch has exactly one scheduler owner.
-2. Candidates come from waiting, non-head batches with `start_time is None`.
+2. Candidates come from waiting, non-head batches with no iteration in flight
+   (`start_time is None`).
 3. A candidate must already be logically resident in CPU KV cache.
 4. Ownership transfer uses a synchronous section, so queue mutation is atomic
    on the Controller actor's asyncio event loop.
 5. A stale or failed eligibility check leaves both queues unchanged.
 6. Pending donor GPU-to-CPU KV events remain available to the receiver's later
    CPU-to-GPU move-in.
-7. Callback failures are logged and counted as rejected attempts; Decode
-   scheduling continues.
+7. Dispatcher transfer exceptions are logged and counted as `internal_error`
+   rejections. The Scheduler also catches callback exceptions and continues
+   scheduling.
 8. Each donor round performs at most one transfer attempt and moves at most one
    batch.
 
@@ -92,7 +98,9 @@ deviation divided by the arithmetic mean:
 CV = population_stddev(x) / mean(x)
 ```
 
-A lower CV means the measured work is distributed more evenly. The primary
+The implementation returns 0 for empty input or a zero mean. When the
+counters contain actual work, a lower CV means the measured work is
+distributed more evenly. The primary
 load metrics are `output_tokens` CV and `active_seconds` CV. Turn count is also
 reported but is affected by model switching and quota boundaries, so it should
 not be treated as the primary work measure.
@@ -100,7 +108,12 @@ not be treated as the primary work measure.
 ## GPU smoke test
 
 The manual smoke test creates one Prefill and two Decode Engines, submits the
-same deterministic asymmetric workload, and can run either policy:
+same deterministic asymmetric workload, and can run either policy. Its
+`build_config()` assumes A100 80 GiB and parameter counts of `0.6 × 2^30` and
+`7.1 × 2^30`; default profiles are both `qwen2_5_7b`. The default 16384-token
+prompt also requires sufficient model context for the requested output.
+For other checkpoints or devices, adjust the hard-coded capacity, parameter
+counts, and memory budgets and select matching profiles before running:
 
 ```bash
 CUDA_VISIBLE_DEVICES=4,5,6 \
@@ -126,55 +139,42 @@ python benchmark/compare_work_stealing_results.py \
 ```
 
 Use `--format json` for machine-readable summary output. The comparison tool
-rejects different workloads, different Decode Engine sets, mismatched output
-lengths, and non-conserving Decode token counts.
+rejects different request IDs, model names, input/output lengths, Decode
+Engine sets, and non-conserving Decode token counts. It does not compare prompt
+contents or generated token IDs, so retain those separately for output
+correctness comparisons.
 
 The smoke script owns its local Ray runtime and temporary shared-memory files.
 It shuts down actors and removes those files in `finally`. GPU memory should
 still be checked after a manual run on a shared machine.
 
-## Evaluation snapshot
+## Evaluation records
 
-The acceptance workload used two local checkpoints on A100 80 GB GPUs, a
-1P+2D deployment, four requests, and 1,536 total generated tokens. Every Work
-Stealing run made eight decisions, rejected seven while no receiver was idle,
-and completed one affinity-preserving transfer.
+Retain both raw JSON outputs and the comparison output for every reported
+result, together with the model and code revisions, GPU and driver details,
+profile data, memory budgets, workload, and SLO settings. The smoke script
+reports `mean_slo_attainment` from `compute_request_metrics()`: this is the
+project's cumulative-time qos measure, rather than a fraction of requests
+meeting both TTFT and TPOT thresholds.
 
-| Trial | Makespan | Throughput | Decode-token CV | Active-time CV | Mean SLO |
-|---|---:|---:|---:|---:|---:|
-| 1 | -14.86% | +17.46% | -46.48% | -47.55% | +0.048 pp |
-| 2 | -15.27% | +18.02% | -50.39% | -50.53% | -0.303 pp |
-| 3 | -40.52% | +68.14% | -47.27% | -45.18% | +1.114 pp |
-
-Trial 3's baseline makespan was 99.31 seconds, compared with about 69 seconds
-in trials 1 and 2, while all three Work Stealing runs were 58.85--59.14
-seconds. The trial 3 performance delta is therefore retained but treated as a
-shared-environment outlier, not as a policy claim.
-
-Across the two stable pairs, Work Stealing changed:
-
-- makespan by `-15.06% +/- 0.29%`;
-- throughput by `+17.74% +/- 0.40%`;
-- Decode-token CV by `-48.44%`;
-- active-time CV by `-49.04%`; and
-- mean SLO attainment by `-0.127 +/- 0.248` percentage points.
-
-This is a functional acceptance workload, not a full production benchmark.
-It demonstrates that one safe transfer can reduce a deliberately constructed
-imbalance without materially changing mean SLO attainment.
+A successful transfer demonstrates the ownership-transfer path. Throughput,
+latency, and balance effects depend on the workload and require paired results;
+the script itself establishes no fixed performance improvement.
 
 ## Current scope
 
 - Transfers are limited to Decode Engines owned by the same Controller.
-- The receiver is fully idle at transfer time.
+- The receiver has an empty batch queue at transfer time.
 - The unit of movement is a complete batch.
 - KV migration uses the CPU-resident path.
 - Model affinity is preferred; a non-affinity transfer adds a model switch when
   it is the only eligible choice.
-- The trigger activates when at least one Decode Engine is idle.
-- The smoke workload uses tight GPU memory to force separate batches. A
-  speculative QuickLoader prefetch can run out of memory and fall back to the
-  supported direct-load path.
+- The trigger requires a Decode Engine with an empty batch queue.
+- The smoke workload uses a low memory budget to form separate batches.
+  The Worker prefetch thread catches speculative loading errors, including OOM,
+  and clears the prefetch state;
+  the subsequent direct model load still needs enough memory for weights,
+  loading scratch, KV state, and workspace.
 
 ## Primary code locations
 

@@ -27,7 +27,7 @@ Simple 与 P/D 是两种互斥模式，图中并列展示两条可选路径；�
 
 ## 控制面
 
-API 层处理 schema、tokenizer、chat template、停止文本、流式增量、访问统计与模型部署。LLMService 管理多个 Controller、副本放置、请求 reservation 和模型操作。
+API 层处理 schema、tokenizer、chat template、停止文本、流式增量、访问统计与模型部署。LLMService 管理多个 Controller、副本放置、请求 reservation 和模型操作；least-outstanding 路由比较节点上所有模型的未完成 reservation 总数。
 
 每个 Controller 是异步 Ray actor，维护 Dispatcher、Scheduler、StageEngine、BlockManager、QuickCache 和事件记录。asyncio 负责调度，Workers 负责 GPU 计算，API 进程负责 HTTP 与控制面。
 
@@ -63,7 +63,7 @@ KV 换入换出以 CUDA events 串联相关 stream，确保数据准备、源与
 | 引擎 / GPU 执行 | stage_engine.py、worker.py |
 | 调度 | simple/prefill/decode dispatcher 与 scheduler |
 | 权重加载 | loader/、quick_model_loader/ |
-| KV 管理 | block_manager.py、cache_groups.py、cache_transfer.py、vllm_cache.py、ops/ |
+| KV 管理 | block_manager.py、cache_groups.py、cache_transfer.py、vllm_cache.py、仓库根目录 ops/ |
 | 注册与预算 | config.py、model_registry.py、device_registry.py、estimator.py |
 | 图恢复 | cuda_graph.py、graph_config.py、graph_bindings.py、foundry_runtime.py、foundry/ |
 

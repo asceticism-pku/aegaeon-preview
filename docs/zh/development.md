@@ -12,7 +12,7 @@
 | benchmark/、tools/ | 基准与专项测试工具；每个脚本的参数和环境要求见对应说明 |
 | tests/ | 控制逻辑与GPU相关测试 |
 | sim/ | SimPy策略仿真 |
-| plots/、workloads/ | 绘图与负载资料 |
+| plots/ | 绘图脚本；工作负载文件按工具所需路径另行准备 |
 | web/ | 内置页面 |
 | docs/zh/、docs/en/ | 中英文文档及配套示例 |
 
@@ -22,7 +22,7 @@
 
 配置字段需要贯通解析→配置类→API创建→Ray env / Controller→Engine/Worker。新增功能应同时覆盖成功路径、失败路径、作用域、默认值和限制。
 
-模型与设备通过 registry/YAML 扩展；`ModelType` 和 `DeviceType` 已不再使用枚举。新增 KV 类型时同步实现描述、block 数量、搬运布局、sliding window 和状态复原测试。
+模型与设备通过 registry/YAML 扩展；`aegaeon.models.ModelType` 和 `aegaeon.utils.DeviceType` 是兼容旧属性访问的命名空间。新增 KV 类型时同步实现描述、block 数量、搬运布局、sliding window 和状态复原测试。
 
 ## 验证层次
 
@@ -30,7 +30,7 @@
 2. 带mock控制面测试：模型部署、reservation释放、busy拒绝、部分失败与SSE清理。
 3. 单模型真实GPU：加载、EOS、上下文、正确输出与退出。
 4. 多模型切换与并发：缓存搬运、请求守恒、输出一致、资源回落。
-5. 目标拓扑专项：P/D、多节点、Work Stealing 和 Foundry。当前发布范围固定 TP=1，且只支持文本输入。
+5. 目标拓扑专项：P/D、多节点、Work Stealing 和 Foundry。使用 TP=1 基线；模型和输入类型的适用范围见[功能与兼容性](capabilities.md)，新增输入类型需补充对应的处理和推理测试。
 
 `tests/` 同时包含纯逻辑测试和依赖真实模型、CUDA 的测试。请按测试文件的依赖选择测试集。
 

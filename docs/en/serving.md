@@ -47,7 +47,7 @@ curl -sS http://127.0.0.1:8000/v1/completions \
   -d '{"model":"Qwen/Qwen3-4B","prompt":"KV Cache is","temperature":0,"max_tokens":32}'
 ```
 
-`prompt` accepts a nonempty string or a single list of token IDs. The Completion interface does not accept batched prompts or token lists, and it does not apply a chat template automatically. Use Chat for instruction models.
+`prompt` accepts a nonempty string or a single list of token IDs. The Completion interface accepts one string or one token-ID list per request; batched strings and nested token-ID lists are rejected. It does not apply a chat template automatically. Use Chat for instruction models.
 
 ## Input types
 

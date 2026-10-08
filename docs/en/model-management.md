@@ -21,7 +21,7 @@ The diagram shows the main lifecycle. Only READY replicas receive new requests. 
 
 least-loaded ranks nodes using cache layouts, evictable inactive models, estimated eviction costs, request loads, free cache, and cached-model counts. Node IDs break ties deterministically. This policy does not merely compare GPU utilization.
 
-QuickCache fit considers allocator slices, so fragmentation affects placement. Load is the maximum of Controller active count and API outstanding reservations, covering requests routed but not yet submitted without counting them twice.
+QuickCache fit considers allocator slices, so fragmentation affects placement. Load uses the maximum of Controller active count and API outstanding reservations as an estimate from asynchronous snapshots, avoiding double counting from direct addition; it is not the exact deduplicated union of the two request sets.
 
 `replica_count` is a minimum target. Reducing it after reaching the target does not automatically remove excess replicas. Explicit `node_ids` bypass automatic selection. Placement runs on deploy calls rather than continuously autoscaling node counts.
 
@@ -35,15 +35,15 @@ Both policies also support round-robin for comparisons. Unknown policy names fai
 
 ## Request routing
 
-least-outstanding selects the READY node with the fewest unfinished requests for that model; equal loads rotate deterministically using the internal request ID. round-robin ignores load and selects by request ID modulo the READY node count.
+least-outstanding selects from the model's READY nodes using each node's total API routing reservations across all models; equal loads rotate deterministically using the internal request ID. round-robin ignores load and selects by request ID modulo the READY node count.
 
 One physical node owns the entire Prefill and Decode lifecycle of a request. Live requests do not migrate across physical nodes. Node-local Decode Work Stealing is a separate mechanism.
 
 ## Eviction and failures
 
-When capacity is insufficient, deployment selects removable cached models with no active requests. The response `evicted` field and runtime state record the actual removals.
+When capacity is insufficient, the Controller evicts cached models with no submitted active requests. Successful nodes return their eviction list in `evicted`. If deployment on a node fails after eviction, that failure branch returns only the error and omits its earlier evictions. After a deployment failure, compare runtime `nodes[].model_cache` with `model_placements`; restart the service before deploying the required models when these disagree.
 
-Multi-node deployment can partially succeed. Complete failure without an existing READY replica returns 507. Operations for each model are serialized; different models can be operated on independently but still share node caches.
+Multi-node deployment can partially succeed. Complete failure without an existing READY replica returns 507. LLMService serializes replica deployment and unloading per model. Replica operations for different models can proceed concurrently while sharing node caches; this lock does not cover all HTTP-layer registry metadata processing.
 
 Unloading first marks a replica DRAINING. Active requests or API reservations produce a rejection result; run undeploy again after those requests finish. Before replacing model files, changing the path for an existing name, or updating archives, drain and unload the replica, then rerun the model acceptance procedure after deployment.
 

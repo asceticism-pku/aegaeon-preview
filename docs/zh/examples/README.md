@@ -9,7 +9,7 @@
 | multi-node.yaml | 两物理节点，每节点1 Simple Engine |
 | dynamic.yaml | 空服务后显式部署 |
 | work-stealing.yaml | 单节点1P+2D |
-| foundry-save.yaml / foundry-load.yaml | P/D Decode、batch=1、单4096桶；还需Foundry/hook及存档 |
+| foundry-save.yaml / foundry-load.yaml | P/D Decode、batch=1、单4096桶；需要 Foundry/hook；SAVE 创建存档，LOAD 要求完整存档 |
 | chat-request.json | 最小非流式贪心请求 |
 
 ```bash

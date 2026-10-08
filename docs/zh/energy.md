@@ -2,7 +2,7 @@
 
 ## 功耗采样
 
-`GET /v1/aegaeon/gpu-power` 通过 nvidia-smi 读取 GPU 采样。NvidiaSmi 层解析设备标识、功率和频率等字段；命令失败或未采集到设备时，响应中的 `gpus` 为空列表，详细原因写入服务日志。
+`GET /v1/aegaeon/gpu-power` 通过 nvidia-smi 读取 GPU 采样。每个样本包含设备 index、采样 timestamp、power_w、sm_clock_mhz、mem_clock_mhz 和 utilization_gpu_pct；不支持的数值返回 `null`。找不到命令或命令退出失败时，`gpus` 返回空列表并记录警告；空 stdout 也产生空列表。
 
 该接口采集 API 所在主机。分布式部署需要在各 Ray 节点分别采集再聚合。能量评估通过功率积分计算，并明确时间区间、采样频率、空载基线和真实完成 tokens。
 
@@ -18,7 +18,9 @@ GpuFrequencyController 由 `AEGAEON_GPU_FREQ_CONTROL` 显式启用，默认关�
 
 ## 实验工具
 
-tools/ 包含 gpu_clock_search.py、pd_clock_search.py、energy_request.py 与 aegaeon-gpu-clock，benchmark/ 包含 benchmark_energy.py。先读取 --help 和脚本前提，确认频率修改、输出路径和模型配置。这些工具用于实验与测量；自动节能调度需要单独实现。
+`tools/gpu_clock_search.py`、`tools/pd_clock_search.py` 和 `benchmark/benchmark_energy.py` 提供 `--help`；执行实验前核对频率修改、输出路径和模型配置。`tools/energy_request.py` 是请求辅助模块；`tools/aegaeon-gpu-clock` 的调用格式为 `<gpu_id> set <min_mhz> <max_mhz>` 或 `<gpu_id> reset`。这些工具用于实验与测量；自动节能调度需要单独实现。
+
+当前 `energy_request.py` 的 `tokens` 统计非空 SSE 文本 chunk，`per_token` 统计这些 chunk 的到达间隔。频率搜索和能量脚本基于这些字段计算速率和 SLO，结果应标注为 chunk 口径；真实能量/token 和 token 级 TPOT 需取得完整 token 计数与时间数据。`benchmark_energy.py` 的多点功率积分只覆盖首末有效样本之间，单点则以该功率乘实验时长；报告需保留样本覆盖区间，补齐边界与空载基线的测量。
 
 ## 合理报告
 

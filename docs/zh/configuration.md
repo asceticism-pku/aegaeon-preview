@@ -11,7 +11,7 @@
 | host / port | 由 CLI 直接传给 uvicorn；server YAML 省略这两个字段 |
 | Ray 地址 | `--ray-address` → `AEGAEON_RAY_ADDRESS` → `RAY_ADDRESS` → `auto` |
 | 启动模型集合 | `--models` → `server.startup_models` → 配置中全部模型 |
-| tensor_parallel_size | 必须为 1；CLI 非空值优先，否则读取 YAML / ServerConfig |
+| tensor_parallel_size | 必须为 1；非零 CLI 值优先；未设置或为 0 时读取 YAML / ServerConfig |
 | 引擎数、CPU slab、权重缓存大小 | 正常路径取 ServerConfig；CLI 对应参数主要用于 fallback |
 | SLO | utils 模块导入时从环境变量读取；server YAML 省略相关字段 |
 
@@ -43,7 +43,7 @@ YAML 省略 server 字段时，`getattr` 会读取 ServerConfig 默认值。引�
 | startup_models | null | null=全部；[]=空服务 |
 | cuda_graph | CudaGraphConfig() | 默认关闭；详见下表 |
 
-默认 CPU KV 为 128 GiB/节点，此外还会分配 CPU 权重缓存和 loader 缓冲区。内存少于这些预算的机器应显式调小 slab 和缓存配置。
+默认 CPU KV 为 128 GiB/节点，此外还有 CPU 权重缓存、权重文件映射与进程内存。内存少于这些预算的机器应显式调小 slab 和缓存配置。
 
 P/D 推理配置至少包含一个 Prefill Engine 和一个 Decode Engine。Simple 模式则设置 `num_engines>0`，并将两种 P/D Engine 数量设为 0。
 
@@ -54,11 +54,12 @@ P/D 推理配置至少包含一个 Prefill Engine 和一个 Decode Engine。Simp
 | name | 必填 | 对外模型名字；profile 文件夹可使用独立名称 |
 | path | 空字符串 | 本地权重目录；省略时 `ModelSpec.path()` 触发下载 |
 | params | null | **输入数字乘以 2^30 后作为参数量** |
-| profile | 空字符串 | 显式性能目录别名；否则由模型 ID 最后一段规范化 |
+| profile | 空字符串 | 显式性能目录别名；否则由模型名字最后一段规范化 |
 | max_model_len | null | 上下文总长度 override；仍需符合模型能力 |
-| id | 省略 | 所有模型都省略时按顺序生成；显式设置时为每个模型都填写 |
+| id | 省略 | 所有模型都省略时按顺序生成；显式设置时为每个模型都填写 ID |
+| tool_parser | null | 非空 vLLM tool parser 名称；为模型别名显式选择输出函数调用解析器 |
 
-例如 `params: 4` 表示 `4 × 2^30` 个参数。通常可省略 params，由注册表读取权重 metadata；读取失败时再按真实 tensor 数量填写。models 条目只解析上表字段；GPU 频率由实验脚本处理，当前 ModelSpec 省略相关字段。
+例如 `params: 4` 表示 `4 × 2^30` 个参数。通常可省略 params，由注册表读取权重 metadata；读取失败时将真实参数总数除以 `2^30` 后填写 `params`。models 条目只解析上表字段；GPU 频率由实验脚本处理，当前 ModelSpec 省略相关字段。
 
 ## devices 条目
 
@@ -70,7 +71,7 @@ P/D 推理配置至少包含一个 Prefill Engine 和一个 Decode Engine。Simp
 | profile | 通过 DeviceSpec.extra 保存，指定性能目录别名 |
 | 其他字段 | 保存到 DeviceSpec.extra；只有实现中显式读取的字段才会生效 |
 
-PCIe 最大链路代际和宽度只用于估算带宽，H2D 实测值应通过性能采集获得。省略 devices 后 registry 为空；运行时通过 NVML 探测当前 GPU 信息。
+PCIe 最大链路代际和宽度只用于估算带宽，H2D 实测值应通过性能采集获得。省略 devices 后 registry 为空；运行时通过 PyTorch CUDA 查询设备名称与容量，并通过 NVML 估算 PCIe 带宽。设备查询或带宽检测失败时，应在 YAML 中显式配置。
 
 ## cuda_graph 默认与约束
 
@@ -82,8 +83,8 @@ PCIe 最大链路代际和宽度只用于估算带宽，H2D 实测值应通过�
 | seq_len_buckets | [128,256,512,1024,2048] | 配置类接受多个；**当前 Worker save/load 必须只填一个最大长度桶** |
 | strict | true | 控制初始化 scratch 等严格检查；ABI/layout/binding 校验始终执行 |
 | base_address | 0x400000000000 | 正整数、2 MiB 对齐；可写带引号十六进制字符串 |
-| region_size_bytes | 274877906944 | 256 GiB 虚拟地址范围 |
-| scratch_size_bytes | 4294967296 | 4 GiB，必须小于 region_size_bytes |
+| region_size_bytes | 274877906944 | 256 GiB 虚拟地址范围；正整数、2 MiB 对齐 |
+| scratch_size_bytes | 4294967296 | 4 GiB；正整数、2 MiB 对齐，且小于 region_size_bytes |
 
 Foundry hook 当前接入 P/D Decode 路径，正常 Simple 路径使用常规执行。见 [CUDA Graph](cuda-graphs.md)。
 

@@ -25,7 +25,7 @@ The Worker takes argmax directly from logits, so accepted sampling values must b
 
 Chat defaults to `max_tokens=128`; Completion defaults to `max_tokens=16`. Chat also accepts `max_completion_tokens`. If both limits are supplied, they must match. The selected limit must be at least 1.
 
-Prompt and generated tokens both count toward context length. `max_tokens` caps output; EOS, stop tokens, string stops, or the context boundary can end it earlier.
+Prompt and generated tokens both count toward context length. The backend ends a request at the output limit, the context boundary, or an accepted stop token, including EOS. String `stop` is applied to visible text by the HTTP layer; the backend continues until its own stopping condition. The plain-text path has no uniform pre-submission rejection of oversized prompts; callers should keep the prompt token count below the model's `max_model_len`.
 
 ## Stopping and decoding
 
@@ -36,17 +36,17 @@ Prompt and generated tokens both count toward context length. `max_tokens` caps 
 | ignore_eos | Defaults to false; true ignores EOS but retains the output limit |
 | min_tokens | From 0 to max_tokens; controls when stop tokens / stop are accepted |
 | include_stop_str_in_output | Defaults to false; retains a matched stop string when enabled |
-| skip_special_tokens | Defaults to true |
-| spaces_between_special_tokens | Defaults to true; forwarded to tokenizer.decode |
+| skip_special_tokens | Defaults to true; tool parsing uses false to retain tool markup |
+| spaces_between_special_tokens | Defaults to true; tool parsing uses false; other requests forward the field to tokenizer.decode |
 | return_token_ids | Defaults to false; adds token ID fields to responses |
 
 Matched EOS and stop tokens are removed from visible text. `usage.completion_tokens` counts processed token IDs. When a stop string truncates the decoded text, the API re-encodes that text for the count instead of counting raw Worker steps.
 
-`finish_reason` is `stop` or `length` for ordinary text generation. `stop` means EOS, a stop token, or a stop string matched. `length` means the backend completed the request's length budget, which already accounts for remaining context space. Chat uses `tool_calls` when a function call is parsed successfully.
+`finish_reason` is `stop` or `length` for ordinary text generation. `stop` means EOS, a stop token, or a stop string matched. `length` means the backend reached `max_tokens` or the combined prompt/output length reached `max_model_len`. Chat uses `tool_calls` when a function call is parsed successfully.
 
 ## Prompt truncation
 
-`truncate_prompt_tokens` accepts a positive integer, -1, or null. For plain text, `_truncate_prompt` leaves the input unchanged when the value is -1. A positive value keeps the end by default; `truncation_side='right'` keeps the beginning. The public interface supports this text path only.
+`truncate_prompt_tokens` accepts a positive integer, -1, or null. For plain text, `_truncate_prompt` leaves the input unchanged when the value is -1. A positive value keeps the end by default; `truncation_side='right'` keeps the beginning. This description applies to string or token-ID prompts; Chat content-part lists use the vLLM renderer path.
 
 `add_special_tokens` defaults to false in Chat and true in Completion. Chat defaults to add_generation_prompt=true. Setting continue_final_message=true requires add_generation_prompt=false.
 

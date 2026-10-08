@@ -17,7 +17,7 @@ A forward also uses a graph only when all of the following are true:
 3. The largest sequence length in the batch does not exceed the configured `seq_len_buckets` limit.
 4. The graph for the active model was captured or restored successfully.
 
-All other cases execute the eager forward path without failing the request. Confirm a match through the `Foundry decode replay active` Worker log.
+When these graph conditions are not met, the Worker executes the eager forward path. Confirm a match through the `Foundry decode replay active` Worker log.
 
 ## Install Foundry
 
@@ -90,7 +90,7 @@ export AEGAEON_FOUNDRY_HOOK_PATH="$(python -c 'from pathlib import Path; import 
 test -f "$AEGAEON_FOUNDRY_HOOK_PATH"
 ```
 
-`libcuda_hook.so` must be loaded through `LD_PRELOAD` before a Worker process starts. Aegaeon uses `AEGAEON_FOUNDRY_HOOK_PATH` to set this environment for Ray Workers. In a multi-node deployment, install Foundry on every node that runs a Decode Worker and provide an absolute path local to that node.
+`libcuda_hook.so` must be loaded through `LD_PRELOAD` before a Worker process starts. Aegaeon uses `AEGAEON_FOUNDRY_HOOK_PATH` to set this environment for Ray Workers. In a multi-node deployment, install Foundry on every node that runs a Decode Worker. The hook, compatibility-library, and `LD_LIBRARY_PATH` settings from the API process are propagated to all nodes; these absolute paths must exist under the same names on every target node. NodeConfig currently has no per-node hook or compatibility-path override.
 
 See [Troubleshooting](troubleshooting.md) for custom Boost locations, CUDA forward-compatibility libraries, and common loading errors.
 

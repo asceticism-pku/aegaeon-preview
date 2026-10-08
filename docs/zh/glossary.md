@@ -17,7 +17,7 @@
 | TTFT | Time To First Token，必须注明观测层 |
 | TPOT | Time Per Output Token，注意排除首token与计时口径 |
 | HOL blocking | 前面的工作阻塞后续工作 |
-| CV | 总体标准差/平均值 |
+| CV | 总体标准差/平均值；空集合或均值为 0 时，当前实现返回 0 |
 | Foundry SAVE/LOAD | 录制/恢复图、设备代码及确定性布局 |
 | GiB | 2^30 bytes，代码中若干gb字段实际上用此单位 |
 
@@ -35,7 +35,7 @@ CPU 权重缓存部署完成后，GPU 加载、初始化和图恢复仍在后续
 
 ## CUDA Graph是否默认开启？
 
-默认 off。LOAD 模式需要 P/D Decode 接入、Foundry hook、单长度桶和匹配的 archive。
+默认 off。SAVE/LOAD 使用 P/D Decode、TP=1、Foundry hook 和单长度桶；LOAD 还需要匹配的 archive。
 
 ## 能原生在Windows或CPU运行吗？
 

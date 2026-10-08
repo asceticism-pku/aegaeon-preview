@@ -17,20 +17,20 @@
 | 贪心解码 | 支持。Worker 对 logits 执行 argmax | `worker.py` |
 | 随机采样 / 多候选 | 当前仅提供贪心解码，`n` 固定为 1 | `_validate_greedy_parameters` |
 | Logprobs / beam search | 未实现 | `api.py` |
-| 多模态输入 | 当前仅提供文本输入与文本生成 | `api.py`、`worker.py` |
+| 多模态输入 | 当前仅提供文本输入与文本生成的公开支持；存在内容块、renderer 与 Worker 处理路径，具体多模态模型未纳入公开验收 | `api.py`、`worker.py` |
 | 前缀缓存 | 当前关闭；在 vLLM CacheConfig 中显式禁用 | `config.py` |
 | 量化配置 | 当前固定为 `quantization=None` | `config.py` |
 | Decode Work Stealing | 可选，默认关闭；仅在同一 Controller 内转移符合条件的完整 batch | `decode_dispatcher.py` |
 | Foundry 图存档 | 支持 P/D 模式的 Decode Worker；Simple Worker 走常规路径 | `stage_engine.py` |
 | Runtime 快照 / 事件 | 支持 JSON 快照与 SSE 事件流 | `api.py` |
 | Prometheus 指标 | 未集成 | `api.py` |
-| API key 鉴权 | 由部署侧网关提供；Aegaeon 服务端省略 key 校验 | `api.py` |
+| API key 鉴权 | Aegaeon 服务端省略 key 校验；需要鉴权时由部署侧网关实现 | `api.py` |
 
 ## 并行约束
 
 Aegaeon 当前只支持 `tensor_parallel_size=1`。配置解析器虽然接受更大的整数，时延估计器仍执行 `assert tp == 1`；调度、KV Cache 和 Foundry 也只将 TP=1 纳入支持范围。部署配置、性能数据和问题报告都应使用 TP=1。
 
-Pipeline Parallel 同样固定为 1。若要提高吞吐量，可以增加 Simple Engine 或 Prefill/Decode Engine 的数量。每个 Engine 对应一个 Worker 和一张 GPU。
+Pipeline Parallel 同样固定为 1。增加 Simple Engine 或 Prefill/Decode Engine 可提供更多执行单元；吞吐量效果还取决于模型切换、工作负载与资源预算，需要实测。每个 Engine 对应一个 Worker 和一张 GPU。
 
 ## 模型与输入范围
 
