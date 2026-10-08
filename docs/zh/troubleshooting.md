@@ -8,7 +8,7 @@
 
 **setup时找不到torch**：setup.py顶层导入torch；按安装顺序先准备匹配torch再构建。**aegaeon.ops缺失或undefined symbol**：检查扩展是否以当前torch/CUDA构建，环境是否更换过torch，nvcc与wheel是否兼容。**quick_model_loader._rlib缺失**：检查Rust工具链与editable扩展编译结果。**vLLM内部模块导入失败**：主项目使用版本敏感内部接口，检查vllm==0.26.0而不是直接升级到任意最新版。
 
-**Conda 报 database is locked**：测试环境的 libmamba SQLite 分片缓存曾出现该错误，独立包缓存也未完全避免。创建环境时使用 `--solver classic`；安装脚本已自动准备独立包缓存，并在工具链安装时使用 classic solver。
+**Conda 报 database is locked**：测试环境的 libmamba SQLite 分片缓存曾出现该错误，独立包缓存也未完全避免。创建环境时使用 `--solver classic`；安装脚本已自动准备独立包缓存，并在工具链安装时使用 classic solver。 Foundry 依赖安装若仍在 `shards_cache` 报锁冲突，可在该次 `conda install` 命令前加 `CONDA_PLUGINS_USE_SHARDED_REPODATA=false`，关闭分片 repodata 缓存。实际命令见[CUDA Graph 安装步骤](cuda-graphs.md#安装-foundry)。
 
 **安装脚本提示驱动不兼容**：脚本使用 CUDA 12.9 构建，并在安装包之前检查驱动兼容性；GPU 和驱动须满足 CUDA 12.x 的兼容要求。已验收环境为 A100 PCIe 40GB 与驱动 `535.247.01`。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，请使用安装脚本提供的固定版本组合。
 
@@ -64,6 +64,14 @@ ulimit -Hl
 **流式输出延迟**：客户端使用 curl -N，并检查代理缓冲、网络和首次加载成本。**断开后 outstanding 仍非零**：后端继续运行至停止条件，清理任务等待执行完成。**修改 YAML 后配置仍为旧值**：重启服务进程以重新加载全局 registry。**CLI 引擎数与预期不同**：正常启动读取 ServerConfig，请修改 YAML。
 
 ## Foundry
+
+**NumPy 导入失败 / NP_SUPPORTED_MODULES**：Conda 安装的 NumPy 包要求环境中的 `libstdc++`。遇到后续 `NP_SUPPORTED_MODULES` 错误时，先查看完整 traceback 中较早的 NumPy 或 `GLIBCXX_*` 导入错误。Python 启动前将 `$CONDA_PREFIX/lib` 加入 `LD_LIBRARY_PATH`；旧驱动还需要 compat 时，保持 compat 第一、Conda `lib` 第二，然后重新启动进程：
+
+```bash
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# 仅在已配置 CUDA forward-compatibility 库的环境执行下一行
+export LD_LIBRARY_PATH="$AEGAEON_CUDA_COMPAT_PATH:$LD_LIBRARY_PATH"
+```
 
 **需要 hook path**：AEGAEON_FOUNDRY_HOOK_PATH 填写与 `foundry.ops` 同目录 `.so` 文件的绝对路径，并在 Worker 启动前传入。**libboost_json/libboost_filesystem not found**：安装匹配的 Boost>=1.83，或将自定义 Boost 的 `lib` 目录加入 `LD_LIBRARY_PATH`。**undefined symbol: cuFuncGetName**：使用与 CUDA wheel 匹配的 forward-compatibility 库，并设置 `AEGAEON_CUDA_COMPAT_PATH`；直接导入验证时还要同步加入 `LD_LIBRARY_PATH`。**expect one maximum sequence length**：seq_len_buckets 保留一个元素。**archive incomplete**：核对 registry 中全部模型及每个 rank 的文件与图。**obsolete ABI/layout mismatch/binding mismatch**：恢复与 SAVE 相同的环境和布局，或重新录制；strict=false 只放宽文档注明的检查。**LOAD 后走 eager**：Foundry hook 位于 P/D Decode 路径；继续检查 batch、长度、graph_state 和 replay 日志。
 

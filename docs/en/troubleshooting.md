@@ -8,7 +8,7 @@ Preserve the full traceback, startup command, YAML, source revision, dependency 
 
 **torch missing during setup**: setup.py imports torch at module scope; install a matching torch first. **Missing aegaeon.ops or undefined symbol**: check that the extension was built with the current torch/CUDA, whether torch changed, and whether nvcc matches the wheel. **Missing quick_model_loader._rlib**: check Rust tooling and the editable extension build. **vLLM internal import errors**: the project uses version-sensitive internal interfaces; check vllm==0.26.0 rather than upgrading indiscriminately.
 
-**Conda reports database is locked**: libmamba's SQLite shard cache failed in the tested environment, even with a private package cache. Use `--solver classic` when creating the environment; the installer already prepares an independent package cache and uses the classic solver for toolchain installation.
+**Conda reports database is locked**: libmamba's SQLite shard cache failed in the tested environment, even with a private package cache. Use `--solver classic` when creating the environment; the installer already prepares an independent package cache and uses the classic solver for toolchain installation. If Foundry dependency installation still fails in `shards_cache`, prefix that `conda install` command with `CONDA_PLUGINS_USE_SHARDED_REPODATA=false` to disable sharded repodata caching for the command. See the command in [CUDA Graph installation](cuda-graphs.md#install-foundry).
 
 **The installer reports an incompatible driver**: the installer uses CUDA 12.9 builds and checks driver compatibility before installing packages. The GPU and driver must meet CUDA 12.x compatibility requirements. The validated environment is an A100 PCIe 40GB with driver `535.247.01`. PyTorch 2.11.0 is required by vLLM 0.26.0; use the fixed version combination provided by the installer.
 
@@ -64,6 +64,14 @@ One A100 validation passed with a 64 MiB hard memlock limit; use actual startup 
 **Streaming output is delayed**: use curl -N and inspect proxy buffering, networking, and first-load costs. **Outstanding remains nonzero after disconnect**: backend execution continues to its stopping condition, and cleanup waits for completion. **YAML changes have no effect**: restart the service; global registries do not support hot reload. **CLI engine counts have no effect**: normal startup uses ServerConfig; change YAML.
 
 ## Foundry
+
+**NumPy import failure / NP_SUPPORTED_MODULES**: the NumPy package installed by Conda requires the environment's `libstdc++`. For an `NP_SUPPORTED_MODULES` error, first inspect earlier NumPy or `GLIBCXX_*` import errors in the full traceback. Add `$CONDA_PREFIX/lib` to `LD_LIBRARY_PATH` before starting Python. If an older driver also needs a compatibility library, keep that library first and Conda `lib` second, then start a fresh process:
+
+```bash
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Run the next line only when a CUDA forward-compatibility library is configured
+export LD_LIBRARY_PATH="$AEGAEON_CUDA_COMPAT_PATH:$LD_LIBRARY_PATH"
+```
 
 **Hook path required**: AEGAEON_FOUNDRY_HOOK_PATH must point to the .so colocated with `foundry.ops` before Worker startup. **libboost_json/libboost_filesystem not found**: install matching Boost>=1.83 libraries or add a custom Boost `lib` directory to `LD_LIBRARY_PATH`. **undefined symbol: cuFuncGetName**: use the forward-compatibility library matching the CUDA wheel and set `AEGAEON_CUDA_COMPAT_PATH`; also add it to `LD_LIBRARY_PATH` for a direct import check. **expect one maximum sequence length**: use exactly one seq_len_buckets element. **archive incomplete**: verify every registry model, rank, and graph, not only startup models. **obsolete ABI / layout mismatch / binding mismatch**: restore a matching SAVE environment or capture again; strict=false cannot bypass every check. **Enabled without replay**: normal Simple mode has no integration, or batch/length/state does not match; use P/D and inspect replay logs.
 
