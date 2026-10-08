@@ -8,7 +8,11 @@ Preserve the full traceback, startup command, YAML, source revision, dependency 
 
 **torch missing during setup**: setup.py imports torch at module scope; install a matching torch first. **Missing aegaeon.ops or undefined symbol**: check that the extension was built with the current torch/CUDA, whether torch changed, and whether nvcc matches the wheel. **Missing quick_model_loader._rlib**: check Rust tooling and the editable extension build. **vLLM internal import errors**: the project uses version-sensitive internal interfaces; check vllm==0.26.0 rather than upgrading indiscriminately.
 
-**Conda reports database is locked**: libmamba's SQLite shard cache failed in the tested environment, even with a private package cache. Set `export CONDA_PKGS_DIRS="$HOME/.conda/pkgs-aegaeon"` and pass `--solver classic` to `conda create/install`; the installation guide already uses this combination.
+**Conda reports database is locked**: libmamba's SQLite shard cache failed in the tested environment, even with a private package cache. Use `--solver classic` when creating the environment; the installer already prepares an independent package cache and uses the classic solver for toolchain installation.
+
+**Driver is too old for the default installer**: the PyPI CUDA 13.0 build requires driver 580 or newer. Upgrade the driver or, if the driver and GPU meet CUDA 12.x compatibility requirements, use `bash scripts/install-quickstart.sh --cuda cu129`. The installer checks this before installing packages. PyTorch 2.11.0 is required by vLLM 0.26.0; selecting cu129 changes the CUDA build variant, not the supported PyTorch/vLLM release pair.
+
+**CUDA Toolkit/compiler mismatch**: local extensions still require a CUDA Toolkit matching the PyTorch CUDA build. Rerun the installer in the intended environment to prepare matching CUDA, GCC/G++, and Rust tooling, then rebuild the extensions.
 
 ### Optional installation checks
 
@@ -21,7 +25,7 @@ aegaeon --help
 aegaeon start --help
 ```
 
-The installation guide uses PyTorch `2.11.0+cu129`, vLLM `0.26.0+cu129`, and CUDA `12.9`. The package uses lazy exports; import the modules above individually to check its CUDA extension and loader.
+The default installer uses the PyPI vLLM `0.26.0` / PyTorch `2.11.0` CUDA 13.0 build; `--cuda cu129` selects the CUDA 12.9 variants of those releases. Compare the reported versions with the selected path. The package uses lazy exports; import the modules above individually to check its CUDA extension and loader.
 
 ## Ray and GPUs
 

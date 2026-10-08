@@ -2,6 +2,8 @@
 
 下表按模块列出顶层类和函数，方便定位实现。应用接入时请优先使用公开的 [Python API](python-api.md)。
 
+`aegaeon/llm.py` 中的 `_default_cuda_compat_paths` 按 Worker 环境的 `torch.version.cuda` 探测同版本 CUDA 兼容库目录。
+
 | 文件 | 顶层符号 |
 |---|---|
 | `aegaeon/__init__.py` | `__getattr__` |
@@ -24,7 +26,7 @@
 | `aegaeon/graph_bindings.py` | `cuda_tensor_bindings`, `validate_bindings`, `single_split_attention`, `relocate_cuda_buffers` |
 | `aegaeon/graph_config.py` | `CudaGraphConfig` |
 | `aegaeon/lifetime.py` | `LifetimeEventType`, `LifetimeEvent`, `json_encode_lifetime_events`, `json_decode_lifetime_events` |
-| `aegaeon/llm.py` | `_foundry_worker_env`, `_node_runtime_env`, `_get_worker_num_cpus`, `LLMService`, `Controller` |
+| `aegaeon/llm.py` | `_default_cuda_compat_paths`, `_foundry_worker_env`, `_node_runtime_env`, `_get_worker_num_cpus`, `LLMService`, `Controller` |
 | `aegaeon/loader/__init__.py` |  |
 | `aegaeon/loader/allocator.py` | `DeviceType`, `Device`, `MemoryTable`, `Allocator`, `CUDAllocator`, `CPUAllocator`, `PinnedAllocator`, `find_feasible_addr`, `is_interleaved`, `get_insert_index` |
 | `aegaeon/loader/cache.py` | `QuickCache`, `load_tensors_file_buffer` |

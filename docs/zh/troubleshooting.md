@@ -8,7 +8,11 @@
 
 **setup时找不到torch**：setup.py顶层导入torch；按安装顺序先准备匹配torch再构建。**aegaeon.ops缺失或undefined symbol**：检查扩展是否以当前torch/CUDA构建，环境是否更换过torch，nvcc与wheel是否兼容。**quick_model_loader._rlib缺失**：检查Rust工具链与editable扩展编译结果。**vLLM内部模块导入失败**：主项目使用版本敏感内部接口，检查vllm==0.26.0而不是直接升级到任意最新版。
 
-**Conda 报 database is locked**：测试环境的 libmamba SQLite 分片缓存曾出现该错误，独立包缓存也未完全避免。可设置 `export CONDA_PKGS_DIRS="$HOME/.conda/pkgs-aegaeon"`，并在 `conda create/install` 中使用 `--solver classic`；安装文档已采用此组合。
+**Conda 报 database is locked**：测试环境的 libmamba SQLite 分片缓存曾出现该错误，独立包缓存也未完全避免。创建环境时使用 `--solver classic`；安装脚本已自动准备独立包缓存，并在工具链安装时使用 classic solver。
+
+**默认安装提示驱动过旧**：PyPI 的 CUDA 13.0 构建要求驱动 580 或更新版本。可升级驱动，或在驱动与 GPU 满足 CUDA 12.x 兼容要求时执行 `bash scripts/install-quickstart.sh --cuda cu129`；脚本在安装包之前完成该检查。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，选择 cu129 只改变 CUDA 构建变体，不改变支持的 PyTorch/vLLM 版本组合。
+
+**CUDA Toolkit/编译器不匹配**：本地扩展仍需要与 PyTorch CUDA 构建匹配的 CUDA Toolkit。在目标环境中重新执行安装脚本，准备匹配的 CUDA、GCC/G++ 和 Rust 工具链，再重新编译扩展。
 
 ### 可选安装验证
 
@@ -21,7 +25,7 @@ aegaeon --help
 aegaeon start --help
 ```
 
-安装文档对应版本为 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129`、CUDA `12.9`。包使用惰性导出，检查 CUDA 扩展和 loader 时请分别导入上述模块。
+默认安装使用 PyPI 的 vLLM `0.26.0` / PyTorch `2.11.0` CUDA 13.0 构建；`--cuda cu129` 使用相同版本的 CUDA 12.9 变体。请按所选路线核对输出版本。包使用惰性导出，检查 CUDA 扩展和 loader 时请分别导入上述模块。
 
 ## Ray与GPU
 

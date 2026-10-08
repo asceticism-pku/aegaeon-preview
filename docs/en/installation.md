@@ -2,9 +2,11 @@
 
 ## Prerequisites
 
-These steps target Linux x86_64 with an NVIDIA GPU. The tested combination is Python 3.10, PyTorch `2.11.0+cu129`, vLLM `0.26.0+cu129`, and CUDA 12.9. Obtain this repository, install and initialize Conda, then run the commands from the repository root.
+These steps target Linux x86_64 with glibc 2.28 or newer, an NVIDIA GPU, and Python 3.10. Obtain this repository, install and initialize Conda, then run the commands from the repository root.
 
-You need an NVIDIA driver compatible with CUDA 12.9 and enough host memory and `/dev/shm` capacity. The QuickStart example uses a 20 GiB model cache and an 8 GiB CPU KV cache; allow additional capacity for Ray and other processes.
+The default installer uses vLLM `0.26.0` from PyPI and its required PyTorch `2.11.0` dependency, currently built for CUDA 13.0. PyTorch 2.11.0 is required by vLLM 0.26.0; the CUDA wheel variant is a driver compatibility choice. The default path requires NVIDIA driver 580 or newer. For older drivers, see the explicit CUDA 12.9 compatibility option below.
+
+You also need enough host memory and `/dev/shm` capacity. The QuickStart example uses a 20 GiB model cache and an 8 GiB CPU KV cache; allow additional capacity for Ray and other processes.
 
 ```bash
 nvidia-smi
@@ -12,26 +14,33 @@ free -h
 df -h /dev/shm
 ```
 
-`nvidia-smi` shows the CUDA version supported by the driver; the installer separately checks the compiler and performs a real CUDA operation.
+`nvidia-smi` shows the CUDA version supported by the driver. The installer checks driver compatibility before installing packages, prepares a matching compiler, and performs a real CUDA operation.
 
 ## Install
 
 Run in a new environment:
 
 ```bash
-export CONDA_PKGS_DIRS="$HOME/.conda/pkgs-aegaeon"
 conda create --solver classic -n aegaeon python=3.10 -y
 conda activate aegaeon
-conda install --solver classic -c nvidia cuda-toolkit=12.9 gcc_linux-64=11.2.0 gxx_linux-64=11.2.0 -y
-conda install --solver classic rust=1.97.1 -y
-bash scripts/install-quickstart-cu129.sh
+bash scripts/install-quickstart.sh
 ```
 
-The private package cache and classic solver avoid Conda cache-lock errors. GCC/G++ 11.2 matches the CUDA 12.9 build requirements. See [troubleshooting](troubleshooting.md) if installation fails.
+The installer prepares an independent Conda package cache and installs a matching CUDA Toolkit, GCC/G++, and Rust into the active environment. It uses the classic solver to avoid the Conda cache-lock errors seen in the tested environment. You do not need to enter toolchain versions manually. See [troubleshooting](troubleshooting.md) if installation fails.
 
-The installer sets `CUDA_HOME`, installs the pinned cu129 PyTorch/vLLM wheels and repository dependencies (including `cupy-cuda12x`), and builds `aegaeon.ops` and `quick_model_loader` with CUDA/C++ and Rust/Cargo. It already checks versions, runs a real CUDA operation, imports the extensions and core components, and runs `pip check`. After all checks pass, it prints `Aegaeon quickstart installation verified`.
+The installer sets `CUDA_HOME`, installs vLLM and its required PyTorch dependency, repository dependencies and the matching CuPy package, and builds `aegaeon.ops` and `quick_model_loader` with CUDA/C++ and Rust/Cargo. A local CUDA Toolkit is still required to compile the extensions and must match the PyTorch CUDA build. The installer checks versions, runs a real CUDA operation, imports the extensions and core components, and runs `pip check`. After all checks pass, it prints `Aegaeon quickstart installation verified`.
 
-**Use the installer above to select the required CUDA 12.9 wheel variants; `pip install -r requirements.txt` only installs the repository's general dependencies.** After changing PyTorch or vLLM versions, rebuild the native extensions and run the test suite.
+### Older-driver compatibility (CUDA 12.9)
+
+In the active environment, use this command instead of the default installer:
+
+```bash
+bash scripts/install-quickstart.sh --cuda cu129
+```
+
+This selects PyTorch `2.11.0+cu129`, vLLM `0.26.0+cu129`, and a matching CUDA 12.9 toolchain. The driver and GPU must support the CUDA 12.x compatibility requirements. This path passed the installation and serving checks on the A100 server with driver 535; the default CUDA 13.0 GPU path has not been validated on that server.
+
+**Use the installer to select a consistent wheel and compiler combination; `pip install -r requirements.txt` only installs the repository's general dependencies.** Arbitrary PyTorch/vLLM versions are not supported. After changing either version, rebuild the native extensions and run the test suite.
 
 ## Next steps
 

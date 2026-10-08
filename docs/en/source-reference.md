@@ -2,6 +2,8 @@
 
 For development, this index lists the main modules and their top-level classes and functions. Applications should use the public [Python API](python-api.md).
 
+In `aegaeon/llm.py`, `_default_cuda_compat_paths` probes CUDA compatibility-library directories matching `torch.version.cuda` in the Worker environment.
+
 | File | Top-level symbols |
 |---|---|
 | `aegaeon/__init__.py` | `__getattr__` |
@@ -24,7 +26,7 @@ For development, this index lists the main modules and their top-level classes a
 | `aegaeon/graph_bindings.py` | `cuda_tensor_bindings`, `validate_bindings`, `single_split_attention`, `relocate_cuda_buffers` |
 | `aegaeon/graph_config.py` | `CudaGraphConfig` |
 | `aegaeon/lifetime.py` | `LifetimeEventType`, `LifetimeEvent`, `json_encode_lifetime_events`, `json_decode_lifetime_events` |
-| `aegaeon/llm.py` | `_foundry_worker_env`, `_node_runtime_env`, `_get_worker_num_cpus`, `LLMService`, `Controller` |
+| `aegaeon/llm.py` | `_default_cuda_compat_paths`, `_foundry_worker_env`, `_node_runtime_env`, `_get_worker_num_cpus`, `LLMService`, `Controller` |
 | `aegaeon/loader/__init__.py` |  |
 | `aegaeon/loader/allocator.py` | `DeviceType`, `Device`, `MemoryTable`, `Allocator`, `CUDAllocator`, `CPUAllocator`, `PinnedAllocator`, `find_feasible_addr`, `is_interleaved`, `get_insert_index` |
 | `aegaeon/loader/cache.py` | `QuickCache`, `load_tensors_file_buffer` |
