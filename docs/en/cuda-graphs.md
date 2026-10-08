@@ -37,7 +37,28 @@ If Conda reports `shards_cache` / SQLite `database is locked`, run the same inst
 CONDA_PLUGINS_USE_SHARDED_REPODATA=false conda install -c conda-forge 'boost-cpp>=1.83' 'boost>=1.83' 'cmake>=4.0' ninja
 ```
 
-Foundry calls `cuFuncGetName` directly. Importing `foundry.ops` fails when the driver library lacks this symbol. Validation with NVIDIA driver `535.247.01` and CUDA 12.9 used a CUDA forward-compatibility library. For this environment, prepare a library matching `torch.version.cuda` as described in [Troubleshooting](troubleshooting.md#foundry), then check its path below. Skip this block when the driver library provides the symbol. Set `AEGAEON_CUDA_COMPAT_PATH` first for a custom location. Prepare the library and pass the path check before importing Foundry. The compatibility library must come first in the search path, followed by the Conda `lib` directory.
+### CUDA 12.9 compatibility library
+
+Foundry calls `cuFuncGetName` directly. Importing `foundry.ops` fails when the driver library lacks this symbol. If the driver library already provides this symbol, skip this section and proceed to the hook path below. When a CUDA forward-compatibility library is needed, first confirm that the GPU and driver combination is supported by the [NVIDIA compatibility support table](https://docs.nvidia.com/deploy/cuda-compatibility/forward-compatibility.html), then select a library matching `torch.version.cuda` and the operating system.
+
+The download example below applies to Ubuntu 20.04 x86_64, CUDA 12.9, and a GPU and driver combination allowed by the support table, such as A100 with driver `535.247.01`. Use the corresponding NVIDIA package for other platforms or CUDA versions. Run these commands from the repository root. They download the official NVIDIA package, verify its SHA256, and extract it into a new directory without root privileges. They require `curl`, `sha256sum`, and Ubuntu's `dpkg-deb` command. Resolve any download or checksum failure before continuing.
+
+```bash
+python -c "import torch; assert torch.version.cuda == '12.9', torch.version.cuda"
+export CUDA_COMPAT_DIR="$(mktemp -d "$PWD/cuda-compat-12.9-XXXXXX")"
+curl --fail --location --retry 3 \
+  'https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-compat-12-9_575.57.08-0ubuntu1_amd64.deb' \
+  -o "$CUDA_COMPAT_DIR/cuda-compat-12-9.deb"
+printf '%s  %s\n' \
+  '0e67e0011b8cb359cecf5d60c3dd7be9c2a69f1b7eb531a4536b83b02173d87a' \
+  "$CUDA_COMPAT_DIR/cuda-compat-12-9.deb" | sha256sum -c -
+dpkg-deb -x "$CUDA_COMPAT_DIR/cuda-compat-12-9.deb" "$CUDA_COMPAT_DIR/root"
+export AEGAEON_CUDA_COMPAT_PATH="$CUDA_COMPAT_DIR/root/usr/local/cuda-12.9/compat"
+test -f "$AEGAEON_CUDA_COMPAT_PATH/libcuda.so.1"
+printf '%s\n' "$AEGAEON_CUDA_COMPAT_PATH"
+```
+
+Keep this directory and record the absolute path printed at the end. In later terminals or service restarts, set `AEGAEON_CUDA_COMPAT_PATH` to that absolute path before running the path check and search-path setup below. If a compatibility library already exists, you can set its absolute path directly. Prepare the library and pass the check before importing Foundry. The compatibility library must come first in the search path, followed by the Conda `lib` directory.
 
 ```bash
 AEGAEON_CUDA_COMPAT_PATH=$(python - <<'PY'
@@ -59,6 +80,8 @@ export AEGAEON_CUDA_COMPAT_PATH
 test -f "$AEGAEON_CUDA_COMPAT_PATH/libcuda.so.1"
 export LD_LIBRARY_PATH="$AEGAEON_CUDA_COMPAT_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
+
+### Locate the hook
 
 After configuring these library paths, import Foundry to locate the hook:
 

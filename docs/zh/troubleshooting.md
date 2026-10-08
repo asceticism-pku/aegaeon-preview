@@ -73,7 +73,7 @@ export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export LD_LIBRARY_PATH="$AEGAEON_CUDA_COMPAT_PATH:$LD_LIBRARY_PATH"
 ```
 
-**需要 hook path**：AEGAEON_FOUNDRY_HOOK_PATH 填写与 `foundry.ops` 同目录 `.so` 文件的绝对路径，并在 Worker 启动前传入。**libboost_json/libboost_filesystem not found**：安装匹配的 Boost>=1.83，或将自定义 Boost 的 `lib` 目录加入 `LD_LIBRARY_PATH`。**undefined symbol: cuFuncGetName**：使用与 CUDA wheel 匹配的 forward-compatibility 库，并设置 `AEGAEON_CUDA_COMPAT_PATH`；直接导入验证时还要同步加入 `LD_LIBRARY_PATH`。**expect one maximum sequence length**：seq_len_buckets 保留一个元素。**archive incomplete**：核对 registry 中全部模型及每个 rank 的文件与图。**obsolete ABI/layout mismatch/binding mismatch**：恢复与 SAVE 相同的环境和布局，或重新录制；strict=false 只放宽文档注明的检查。**LOAD 后走 eager**：Foundry hook 位于 P/D Decode 路径；继续检查 batch、长度、graph_state 和 replay 日志。
+**需要 hook path**：AEGAEON_FOUNDRY_HOOK_PATH 填写与 `foundry.ops` 同目录 `.so` 文件的绝对路径，并在 Worker 启动前传入。**libboost_json/libboost_filesystem not found**：安装匹配的 Boost>=1.83，或将自定义 Boost 的 `lib` 目录加入 `LD_LIBRARY_PATH`。**undefined symbol: cuFuncGetName**：按 [CUDA 12.9 兼容库步骤](cuda-graphs.md#cuda-129-兼容库)下载、校验和无 root 解包匹配的 NVIDIA forward-compatibility 库，设置 `AEGAEON_CUDA_COMPAT_PATH` 并前置到 `LD_LIBRARY_PATH`，再导入 Foundry；该下载示例限定 Ubuntu 20.04 x86_64、A100、驱动 `535.247.01` 和 CUDA 12.9。**expect one maximum sequence length**：seq_len_buckets 保留一个元素。**archive incomplete**：核对 registry 中全部模型及每个 rank 的文件与图。**obsolete ABI/layout mismatch/binding mismatch**：恢复与 SAVE 相同的环境和布局，或重新录制；strict=false 只放宽文档注明的检查。**LOAD 后走 eager**：Foundry hook 位于 P/D Decode 路径；继续检查 batch、长度、graph_state 和 replay 日志。
 
 ## 提交问题的最小材料
 

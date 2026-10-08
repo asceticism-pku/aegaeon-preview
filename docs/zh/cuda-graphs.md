@@ -37,7 +37,28 @@ Conda 安装出现 `shards_cache` / SQLite `database is locked` 时，使用下�
 CONDA_PLUGINS_USE_SHARDED_REPODATA=false conda install -c conda-forge 'boost-cpp>=1.83' 'boost>=1.83' 'cmake>=4.0' ninja
 ```
 
-Foundry 直接调用 `cuFuncGetName`；驱动库缺少该符号时，导入 `foundry.ops` 会失败。本次 NVIDIA 驱动 `535.247.01` 配合 CUDA 12.9 的验收使用 CUDA forward-compatibility 库。在此环境中，先按[故障排查](troubleshooting.md#foundry)准备与 `torch.version.cuda` 匹配的库，再执行下面的路径检查；驱动库提供该符号的环境跳过此块。自定义路径可预先设置 `AEGAEON_CUDA_COMPAT_PATH`。检查失败时先补齐库，检查通过后再导入 Foundry。compat 库应位于搜索路径最前面，Conda 的 `lib` 目录紧随其后。
+### CUDA 12.9 兼容库
+
+Foundry 直接调用 `cuFuncGetName`；驱动库缺少该符号时，导入 `foundry.ops` 会失败。驱动库已经提供该符号的环境跳过本节，直接取得下节的 hook 路径。需要 CUDA forward-compatibility 库时，先按 [NVIDIA 官方兼容支持表](https://docs.nvidia.com/deploy/cuda-compatibility/forward-compatibility.html)确认 GPU 和驱动组合受支持，再选择与 `torch.version.cuda` 和操作系统匹配的库。
+
+下面的下载示例适用于 Ubuntu 20.04 x86_64、CUDA 12.9，以及官方支持表允许的 GPU 和驱动组合，例如 A100 配合驱动 `535.247.01`。其他平台或 CUDA 版本应使用对应的 NVIDIA 包。在仓库根目录执行，使用 NVIDIA 官方包及其 SHA256 校验值，解包到新的独立目录，无需 root 权限。需要 `curl`、`sha256sum` 和 Ubuntu 的 `dpkg-deb` 命令；下载或校验失败时先解决错误，再继续后续步骤。
+
+```bash
+python -c "import torch; assert torch.version.cuda == '12.9', torch.version.cuda"
+export CUDA_COMPAT_DIR="$(mktemp -d "$PWD/cuda-compat-12.9-XXXXXX")"
+curl --fail --location --retry 3 \
+  'https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-compat-12-9_575.57.08-0ubuntu1_amd64.deb' \
+  -o "$CUDA_COMPAT_DIR/cuda-compat-12-9.deb"
+printf '%s  %s\n' \
+  '0e67e0011b8cb359cecf5d60c3dd7be9c2a69f1b7eb531a4536b83b02173d87a' \
+  "$CUDA_COMPAT_DIR/cuda-compat-12-9.deb" | sha256sum -c -
+dpkg-deb -x "$CUDA_COMPAT_DIR/cuda-compat-12-9.deb" "$CUDA_COMPAT_DIR/root"
+export AEGAEON_CUDA_COMPAT_PATH="$CUDA_COMPAT_DIR/root/usr/local/cuda-12.9/compat"
+test -f "$AEGAEON_CUDA_COMPAT_PATH/libcuda.so.1"
+printf '%s\n' "$AEGAEON_CUDA_COMPAT_PATH"
+```
+
+保留这个目录，并记录最后打印的绝对路径。后续终端或服务重启时，先将 `AEGAEON_CUDA_COMPAT_PATH` 重新设为该绝对路径，再执行下面的路径检查和搜索路径设置。已有兼容库时也可直接设置它的绝对路径；检查失败时先补齐库，检查通过后再导入 Foundry。compat 库应位于搜索路径最前面，Conda 的 `lib` 目录紧随其后。
 
 ```bash
 AEGAEON_CUDA_COMPAT_PATH=$(python - <<'PY'
@@ -59,6 +80,8 @@ export AEGAEON_CUDA_COMPAT_PATH
 test -f "$AEGAEON_CUDA_COMPAT_PATH/libcuda.so.1"
 export LD_LIBRARY_PATH="$AEGAEON_CUDA_COMPAT_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
+
+### 取得 hook 路径
 
 以上路径设置完成后，再导入 Foundry 并取得 hook 路径：
 
@@ -98,7 +121,7 @@ server:
 
 1. 为 `archive_dir` 使用新的空目录，并将 `mode` 改为 `'save'`。
 2. 启动服务，并为之后需要在 `load` 模式使用的每个模型发送至少一个进入 Decode 的生成请求。`startup_models` 和 deploy 只注册模型并缓存 CPU 权重；实际 Decode GPU 模型加载时才会录制，以 capture 日志确认存档完成。
-3. 检查每个模型、每个 rank 都出现 `captured ... Foundry decode graphs` 日志，并保留本次运行的源码 revision、配置和依赖版本。
+3. 检查每个模型、每个 rank 都出现 `captured ... Foundry decode graphs` 日志，并保留该次运行的源码 revision、配置和依赖版本。
 4. 用与基线相同的请求检查输出 token ID。
 
 图录制发生在模型加载阶段，服务开始处理该模型的 Decode 请求前就已完成。
@@ -114,7 +137,7 @@ LOAD 会检查模型注册表中的所有模型，而不只是 `startup_models`�
 1. 对相同输入比较 OFF 与 LOAD 的完整 token ID。
 2. 多模型部署中执行 A→B→A 切换，再次检查 A 的输出和 replay 日志。
 
-## 单模型验收示例
+## 单模型验证示例
 
 完成 Aegaeon 和 Foundry 安装后，在仓库根目录执行。使用完整的本地 `Qwen/Qwen3-4B` checkpoint；下列命令沿用示例中的 profile、图形状和内存预算，只修改模型路径、存档路径和模式。`mktemp` 创建独立的新目录，SAVE 不使用历史存档。
 
@@ -150,7 +173,7 @@ aegaeon start --config "$GRAPH_RUN_DIR/${MODE}.yaml" \
   2>&1 | tee "$GRAPH_RUN_DIR/${MODE}.log"
 ```
 
-等待 `Application startup complete`。第二个终端进入同一仓库和 Python 环境，将 `GRAPH_RUN_DIR` 设为上一步打印的绝对目录，再发送固定请求。下面设置最多生成 128 个 token；验收脚本会要求实际至少生成 2 个 token，以覆盖 Decode：
+等待 `Application startup complete`。第二个终端进入同一仓库和 Python 环境，将 `GRAPH_RUN_DIR` 设为上一步打印的绝对目录，再发送固定请求。下面设置最多生成 128 个 token；验证脚本会要求实际至少生成 2 个 token，以覆盖 Decode：
 
 ```bash
 GRAPH_RUN_DIR=/absolute/path/printed/above
@@ -191,7 +214,7 @@ print(f"OFF / SAVE / LOAD match: {len(tokens[0])} generated tokens; graph logs v
 PY
 ```
 
-SAVE 日志须同时出现 `captured ... Foundry decode graphs` 和 `Foundry decode replay active`；LOAD 日志须出现 `loaded ... Foundry decode graph shapes` 和 `Foundry decode replay active`，仅恢复已有存档。图验收以完整 token ID 相等和 replay 日志同时成立为准。
+SAVE 日志须同时出现 `captured ... Foundry decode graphs` 和 `Foundry decode replay active`；LOAD 日志须出现 `loaded ... Foundry decode graph shapes` 和 `Foundry decode replay active`，仅恢复已有存档。图验证以完整 token ID 相等和 replay 日志同时成立为准。
 
 ## 何时需要重新录制
 
