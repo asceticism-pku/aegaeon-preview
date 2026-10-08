@@ -10,7 +10,7 @@
 
 **Conda 报 database is locked**：测试环境的 libmamba SQLite 分片缓存曾出现该错误，独立包缓存也未完全避免。创建环境时使用 `--solver classic`；安装脚本已自动准备独立包缓存，并在工具链安装时使用 classic solver。
 
-**默认安装提示驱动过旧**：PyPI 的 CUDA 13.0 构建要求驱动 580 或更新版本。可升级驱动，或在驱动与 GPU 满足 CUDA 12.x 兼容要求时执行 `bash scripts/install-quickstart.sh --cuda cu129`；脚本在安装包之前完成该检查。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，选择 cu129 只改变 CUDA 构建变体，不改变支持的 PyTorch/vLLM 版本组合。
+**安装脚本提示驱动不兼容**：脚本使用 CUDA 12.9 构建，并在安装包之前检查驱动兼容性；GPU 和驱动须满足 CUDA 12.x 的兼容要求。已验收环境为 A100 PCIe 40GB 与驱动 `535.247.01`。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，请使用安装脚本提供的固定版本组合。
 
 **CUDA Toolkit/编译器不匹配**：本地扩展仍需要与 PyTorch CUDA 构建匹配的 CUDA Toolkit。在目标环境中重新执行安装脚本，准备匹配的 CUDA、GCC/G++ 和 Rust 工具链，再重新编译扩展。
 
@@ -25,7 +25,7 @@ aegaeon --help
 aegaeon start --help
 ```
 
-默认安装使用 PyPI 的 vLLM `0.26.0` / PyTorch `2.11.0` CUDA 13.0 构建；`--cuda cu129` 使用相同版本的 CUDA 12.9 变体。请按所选路线核对输出版本。包使用惰性导出，检查 CUDA 扩展和 loader 时请分别导入上述模块。
+核对输出版本为 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129` 和 CUDA `12.9`。包使用惰性导出，检查 CUDA 扩展和 loader 时请分别导入上述模块。
 
 ## Ray与GPU
 

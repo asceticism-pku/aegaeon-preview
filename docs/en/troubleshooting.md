@@ -10,7 +10,7 @@ Preserve the full traceback, startup command, YAML, source revision, dependency 
 
 **Conda reports database is locked**: libmamba's SQLite shard cache failed in the tested environment, even with a private package cache. Use `--solver classic` when creating the environment; the installer already prepares an independent package cache and uses the classic solver for toolchain installation.
 
-**Driver is too old for the default installer**: the PyPI CUDA 13.0 build requires driver 580 or newer. Upgrade the driver or, if the driver and GPU meet CUDA 12.x compatibility requirements, use `bash scripts/install-quickstart.sh --cuda cu129`. The installer checks this before installing packages. PyTorch 2.11.0 is required by vLLM 0.26.0; selecting cu129 changes the CUDA build variant, not the supported PyTorch/vLLM release pair.
+**The installer reports an incompatible driver**: the installer uses CUDA 12.9 builds and checks driver compatibility before installing packages. The GPU and driver must meet CUDA 12.x compatibility requirements. The validated environment is an A100 PCIe 40GB with driver `535.247.01`. PyTorch 2.11.0 is required by vLLM 0.26.0; use the fixed version combination provided by the installer.
 
 **CUDA Toolkit/compiler mismatch**: local extensions still require a CUDA Toolkit matching the PyTorch CUDA build. Rerun the installer in the intended environment to prepare matching CUDA, GCC/G++, and Rust tooling, then rebuild the extensions.
 
@@ -25,7 +25,7 @@ aegaeon --help
 aegaeon start --help
 ```
 
-The default installer uses the PyPI vLLM `0.26.0` / PyTorch `2.11.0` CUDA 13.0 build; `--cuda cu129` selects the CUDA 12.9 variants of those releases. Compare the reported versions with the selected path. The package uses lazy exports; import the modules above individually to check its CUDA extension and loader.
+Verify that the reported versions are PyTorch `2.11.0+cu129`, vLLM `0.26.0+cu129`, and CUDA `12.9`. The package uses lazy exports; import the modules above individually to check its CUDA extension and loader.
 
 ## Ray and GPUs
 

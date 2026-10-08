@@ -4,7 +4,9 @@
 
 以下步骤适用于 Linux x86_64（glibc 2.28 或更新版本）、NVIDIA GPU 与 Python 3.10。请先获取本仓库、安装并初始化 Conda，然后在仓库根目录执行命令。
 
-默认安装从 PyPI 获取 vLLM `0.26.0` 及其要求的 PyTorch `2.11.0`，当前采用 CUDA 13.0 构建。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，CUDA wheel 变体则按驱动兼容性选择。默认路线要求 NVIDIA 驱动 580 或更新版本；旧驱动请使用下方显式 CUDA 12.9 兼容选项。
+安装脚本固定使用已验收的 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129` 和 CUDA 12.9 组合，自动准备匹配的工具链，无需分别选择或安装这些版本。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求。
+
+从零安装和实际服务请求的验收环境为 A100 PCIe 40GB、NVIDIA 驱动 `535.247.01`、单节点 Simple 模式、TP=1、PP=1 和 `cuda_graph.mode: off`。
 
 还需要足够的主机内存和 `/dev/shm` 空间；QuickStart 示例使用 20 GiB 模型 cache、8 GiB CPU KV cache，还需为 Ray 和其他进程留出余量。
 
@@ -29,16 +31,6 @@ bash scripts/install-quickstart.sh
 安装脚本会在当前 Conda 环境中自动准备匹配的 CUDA Toolkit、GCC/G++ 和 Rust，并使用独立包缓存与 classic solver 规避测试环境出现过的 Conda 缓存锁问题，无需手动输入工具链版本；故障处理见[故障排查](troubleshooting.md)。
 
 安装脚本设置 `CUDA_HOME`，安装 vLLM 及其要求的 PyTorch、仓库依赖和匹配的 CuPy 包，并使用 CUDA/C++ 和 Rust/Cargo 编译 `aegaeon.ops` 与 `quick_model_loader`。本地 CUDA Toolkit 仍用于编译扩展，必须与 PyTorch 的 CUDA 构建匹配。脚本包含版本检查、真实 CUDA 运算、扩展和核心组件导入检查及 `pip check`，全部通过后会输出 `Aegaeon quickstart installation verified`。
-
-### 旧驱动兼容选项（CUDA 12.9）
-
-在当前环境中，用以下命令替代默认安装命令：
-
-```bash
-bash scripts/install-quickstart.sh --cuda cu129
-```
-
-此选项使用 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129` 和匹配的 CUDA 12.9 工具链，驱动与 GPU 须满足 CUDA 12.x 的兼容要求。该路线已在驱动 535 的 A100 服务器上通过安装和服务验收；默认 CUDA 13.0 路线尚未在该服务器上完成 GPU 运行验收。
 
 **使用安装脚本选择一致的 wheel 与编译器组合；`pip install -r requirements.txt` 只处理仓库通用依赖。** 不支持任意 PyTorch/vLLM 版本。更换任一版本后，需要重新编译原生扩展并运行测试集。
 
