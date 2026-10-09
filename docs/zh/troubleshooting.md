@@ -10,13 +10,15 @@
 
 **Conda 报 database is locked**：libmamba 的 SQLite 分片缓存锁冲突会触发该错误。创建环境时使用 `--solver classic`；安装脚本在未设置 `CONDA_PKGS_DIRS` 时指定独立包缓存路径，并在工具链安装时使用 classic solver。Foundry 依赖安装若仍在 `shards_cache` 报锁冲突，可在该次 `conda install` 命令前加 `CONDA_PLUGINS_USE_SHARDED_REPODATA=false`，关闭分片 repodata 缓存。实际命令见[CUDA Graph 安装步骤](cuda-graphs.md#安装-foundry)。
 
-**安装脚本提示驱动不兼容**：脚本使用 CUDA 12.9 构建，安装包之前要求驱动分支号至少为 525，安装后验证真实 CUDA 运算。分支检查是初步筛选；GPU、驱动具体版本及应用所用 CUDA 功能须满足 [NVIDIA CUDA 12.x 兼容要求](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，请使用安装脚本提供的固定版本组合。
+**安装脚本提示驱动不兼容**：默认 auto 模式在安装包之前先检查 cu130 的驱动和 GPU 条件，通过时选择 CUDA 13.0，否则回退 cu129。驱动 `535.247.01` 会回退 cu129。cu129 / CUDA 12.9 路线在安装包之前要求驱动分支号至少为 525，安装后验证真实 CUDA 运算。分支检查是初步筛选；GPU、驱动具体版本及应用所用 CUDA 功能须满足 [NVIDIA CUDA 12.x 兼容要求](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)。CUDA 13.0 实验安装路线采用保守前置门槛，要求 Linux 驱动 `580.95.05` 或更新版本，以匹配 Update 2 工具链，见 [CUDA 13.0 Update 2 发布说明](https://docs.nvidia.com/cuda/archive/13.0.2/cuda-toolkit-release-notes/index.html)。每张检测到的 GPU 计算能力还需至少为 `7.5`；显式 `--cuda cu130` 时，预检未通过会直接退出。该路线尚未完成项目端到端测试。自动回退发生在安装包之前；下载、安装或编译失败会终止所选路线。强制已测试路线可使用 `--cuda cu129`。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求，请使用安装脚本提供的固定版本组合。
+
+auto 初筛驱动和 GPU 计算能力；cu130 还需符合 [CUDA 13.0.2 的 Linux 发行版支持表](https://docs.nvidia.com/cuda/archive/13.0.2/cuda-installation-guide-linux/index.html)，例如 Ubuntu 22.04 或 24.04。Ubuntu 20.04 已从该版本支持表中移除；发行版条件不满足时在新环境中显式选择 `--cuda cu129`。脚本按所选路线安装匹配的 Toolkit，已有 Toolkit 不决定自动选择。
 
 **CUDA Toolkit/编译器不匹配**：本地扩展仍需要与 PyTorch CUDA 构建匹配的 CUDA Toolkit。在目标环境中重新执行安装脚本，准备匹配的 CUDA、GCC/G++ 和 Rust 工具链，再重新编译扩展。
 
 ### 可选安装验证
 
-安装脚本已检查 CUDA 运算、核心导入和依赖一致性；排查安装失败或更换环境后，可在当前环境手动复查：
+安装脚本包含 CUDA 运算、核心导入和依赖一致性检查；排查安装失败或更换环境后，可在当前环境手动复查：
 
 ```bash
 python -c "from importlib.metadata import version; import torch, vllm; print(torch.__version__, version('vllm'), torch.version.cuda); print(torch.ones(1, device='cuda'))"
@@ -25,7 +27,7 @@ aegaeon --help
 aegaeon start --help
 ```
 
-核对输出版本为 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129` 和 CUDA `12.9`。包使用惰性导出，检查 CUDA 扩展和 loader 时请分别导入上述模块。
+已测试的 cu129 路线应输出 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129` 和 CUDA `12.9`。未完成端到端测试的 cu130 路线应使用 PyTorch `2.11.0`（显示版本可带 CUDA 后缀）、vLLM `0.26.0` 和 CUDA `13.0`。包使用惰性导出，检查 CUDA 扩展和 loader 时请分别导入上述模块。上述检查只覆盖安装检查；推理与 CUDA Graph 验证分别见 [QuickStart](quickstart.md) 和[图存档指南](cuda-graphs.md)。
 
 ## Ray与GPU
 
@@ -64,6 +66,8 @@ ulimit -Hl
 **流式输出延迟**：客户端使用 curl -N，并检查代理缓冲、网络和首次加载成本。**断开后 outstanding 仍非零**：后端继续运行至停止条件，清理任务等待执行完成。**修改 YAML 后配置仍为旧值**：重启服务进程以重新加载全局 registry。**CLI 引擎数与预期不同**：正常启动读取 ServerConfig，请修改 YAML。
 
 ## Foundry
+
+已测试的 Foundry 与 CUDA Graph 路线使用 cu129 / CUDA 12.9。CUDA 13.0 的 Foundry 构建和 SAVE/LOAD 尚未完成端到端测试；下面链接的 CUDA 12.9 compat 包只适用于 CUDA 12.9 环境。切换版本时使用独立环境，重新构建扩展与 Foundry，并使用新的存档目录。
 
 **NumPy 导入失败 / NP_SUPPORTED_MODULES**：若 NumPy 的依赖要求比系统版本更新的 `libstdc++`，加载系统旧库会导致导入失败。遇到后续 `NP_SUPPORTED_MODULES` 错误时，先查看完整 traceback 中较早的 NumPy 或 `GLIBCXX_*` 导入错误。Python 启动前将 `$CONDA_PREFIX/lib` 加入 `LD_LIBRARY_PATH`；旧驱动还需要 compat 时，保持 compat 第一、Conda `lib` 第二，然后重新启动进程：
 

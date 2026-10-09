@@ -11,7 +11,7 @@ Aegaeon 是面向多模型服务的 GPU 池化系统，适用于大量模型请�
 
 Aegaeon 将模型权重缓存在主机内存中，并为后续执行预取权重；切换模型时，通过 CPU 与 GPU 之间的 KV Cache 搬运保留请求状态。结合基于性能 Profile 的 Decode 调度，同一组 GPU 引擎可以轮流服务多个模型，而无需让全部模型常驻显存。
 
-[SOSP '25 论文](https://doi.org/10.1145/3731569.3764815)（[作者 PDF](https://ennanzhai.github.io/pub/sosp25-aegaeon.pdf)）报告：在满足论文评测的 SLO 目标时，Aegaeon 可承载的请求到达率为 ServerlessLLM 的 2–2.5 倍；在论文所述的阿里云百炼（Model Studio）beta 部署中，GPU 数量由 1,192 张降至 213 张，减少 82%。
+[SOSP '25 论文](https://doi.org/10.1145/3731569.3764815)报告：在满足论文评测的 SLO 目标时，Aegaeon 可承载的请求到达率为 ServerlessLLM 的 2–2.5 倍；在论文所述的阿里云百炼（Model Studio）beta 部署中，GPU 数量由 1,192 张降至 213 张，减少 82%。
 
 ## 从这里开始
 
@@ -30,7 +30,7 @@ Aegaeon 将模型权重缓存在主机内存中，并为后续执行预取权重
 
 ## 当前版本
 
-当前公开验证的支持范围为纯文本模型与贪心解码，使用 vLLM 的模型实现与计算内核，Tensor Parallel 和 Pipeline Parallel 均固定为 1。提供 Chat、Completion、SSE 流式输出、动态模型管理和运行时观测，并通过 vLLM 工具解析器支持模型相关的函数工具调用。多模态输入、随机采样和量化配置均在当前支持范围之外。模型与接口范围、并行约束及可选优化见[功能与兼容性](capabilities.md)。
+当前版本使用 vLLM 的模型实现与计算内核，面向纯文本模型并采用贪心解码，Tensor Parallel 和 Pipeline Parallel 均固定为 1。提供 Chat、Completion、SSE 流式输出、动态模型管理和运行时观测，并通过 vLLM 工具解析器支持模型相关的函数工具调用。多模态输入、随机采样和量化配置均在当前支持范围之外。模型与接口范围、并行约束及可选优化见[功能与兼容性](capabilities.md)。
 
 ## 文档导航
 

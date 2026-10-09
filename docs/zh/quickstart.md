@@ -2,6 +2,8 @@
 
 本示例使用一台 Linux 主机、一张空闲的 A100 40 GB GPU、Simple 模式和 TP=1，关闭 CUDA Graph。先完成[安装](installation.md)，然后在仓库根目录执行以下命令。
 
+本文从零安装与实际服务请求已在 cu129 / CUDA 12.9 路线上测试。默认安装器先按驱动和 GPU 预检选择 CUDA 13.0，条件未通过时在安装包之前回退 cu129；已测试的驱动 `535.247.01` 环境会选择 cu129。[CUDA 13.0 路线](installation.md#cuda-130-路线未测试)尚未完成项目端到端测试；使用 `--cuda cu129` 可强制选择已测试路线。
+
 仓库已包含示例配置和匹配的 profile。其他模型或 GPU 需要调整[配置](configuration.md)并采集匹配的 [profile](profiling.md)。
 
 ## 1. 准备模型与配置

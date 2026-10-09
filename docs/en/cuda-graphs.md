@@ -4,6 +4,8 @@ During Decode, the CPU submits a similar sequence of GPU operations for every ge
 
 Aegaeon uses the open-source [Foundry](https://github.com/foundry-org/foundry) project to persist captured graphs, CUDA binaries, and deterministic device-memory layouts. The first run creates an archive in `save` mode; later processes restore it in `load` mode instead of capturing the graphs again.
 
+Foundry installation, OFF / SAVE / LOAD, complete token-ID comparisons, and replay-log checks in this guide were tested with cu129 / CUDA 12.9 on an A100 PCIe 40GB with driver `535.247.01`. The default installer selects CUDA 13.0 after driver and GPU checks pass and otherwise falls back to cu129 before installing packages. Use `--cuda cu129` to force the tested route in this guide. The CUDA 13.0 route has not completed Foundry-build or CUDA Graph end-to-end testing. The CUDA 12.9 compatibility package below applies only to CUDA 12.9 environments. A CUDA 13.0 environment needs driver libraries matching that version, a separate Foundry build, and a newly recorded archive.
+
 ## Supported path
 
 - The integration applies only to P/D Decode Workers. The current supported configuration is TP=1.

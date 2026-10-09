@@ -4,6 +4,8 @@ Decode 阶段每生成一个 token，都要由 CPU 重复提交一组相似的 G
 
 Aegaeon 使用开源项目 [Foundry](https://github.com/foundry-org/foundry) 负责把录制好的图、CUDA 二进制和确定性显存布局保存到磁盘。第一次运行用 `save` 模式生成存档，后续进程用 `load` 模式恢复，不需要重新录制。
 
+本文的 Foundry 安装及 OFF / SAVE / LOAD、完整 token ID 对比和 replay 日志验证已在 cu129 / CUDA 12.9、A100 PCIe 40GB、驱动 `535.247.01` 环境中测试。默认安装器按驱动和 GPU 预检选择 CUDA 13.0，条件未通过时在安装包之前回退 cu129；使用 `--cuda cu129` 可强制选择本文已测试的路线。CUDA 13.0 路线尚未完成 Foundry 构建或 CUDA Graph 端到端测试。下面的 CUDA 12.9 compat 包仅用于 CUDA 12.9 环境；CUDA 13.0 环境应使用与该版本匹配的驱动库，分别构建 Foundry 并重新生成存档。
+
 ## 支持范围
 
 - 仅接入 P/D 模式的 Decode Worker，当前支持范围固定为 TP=1。

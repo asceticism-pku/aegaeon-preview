@@ -10,13 +10,15 @@ Preserve the full traceback, startup command, YAML, source revision, dependency 
 
 **Conda reports database is locked**: A lock conflict in libmamba's SQLite shard cache can cause this error. Use `--solver classic` when creating the environment; the installer supplies a separate cache path when `CONDA_PKGS_DIRS` is unset and uses the classic solver for toolchain installation. If Foundry dependency installation still fails in `shards_cache`, prefix that `conda install` command with `CONDA_PLUGINS_USE_SHARDED_REPODATA=false` to disable sharded repodata caching for the command. See the command in [CUDA Graph installation](cuda-graphs.md#install-foundry).
 
-**The installer reports an incompatible driver**: the installer uses CUDA 12.9 builds, requires a driver branch number of at least 525 before installing packages, and verifies real CUDA execution afterward. This branch check is only an initial filter; the GPU, exact driver version, and CUDA features used by the application must meet the [NVIDIA CUDA 12.x compatibility requirements](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html). PyTorch 2.11.0 is required by vLLM 0.26.0; use the fixed version combination provided by the installer.
+**The installer reports an incompatible driver**: default auto mode checks the cu130 driver and GPU prerequisites before installing packages. It chooses CUDA 13.0 when they pass and otherwise falls back to cu129. Driver `535.247.01` selects cu129. The cu129 / CUDA 12.9 route requires a driver branch number of at least 525 before installing packages and verifies real CUDA execution afterward. This branch check is only an initial filter; the GPU, exact driver version, and CUDA features used by the application must meet the [NVIDIA CUDA 12.x compatibility requirements](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html). The experimental CUDA 13.0 install route uses a conservative prerequisite of Linux driver `580.95.05` or newer to match the Update 2 toolchain; see the [CUDA 13.0 Update 2 release notes](https://docs.nvidia.com/cuda/archive/13.0.2/cuda-toolkit-release-notes/index.html). Every detected GPU must have compute capability of at least `7.5`. With explicit `--cuda cu130`, failing prerequisites terminate the installer. That route has not completed project end-to-end testing. Automatic fallback happens before installing packages; download, installation, or compilation failures terminate the selected route. Use `--cuda cu129` to force the tested route. PyTorch 2.11.0 is required by vLLM 0.26.0; use the fixed version combination provided by the installer.
+
+Auto checks the driver and GPU compute capability. cu130 also needs a [Linux distribution supported by CUDA 13.0.2](https://docs.nvidia.com/cuda/archive/13.0.2/cuda-installation-guide-linux/index.html), such as Ubuntu 22.04 or 24.04. Ubuntu 20.04 was removed from this version's support table. If the distribution requirement is not met, select `--cuda cu129` explicitly in a new environment. The script installs the matching Toolkit for the selected route; an existing Toolkit does not determine automatic selection.
 
 **CUDA Toolkit/compiler mismatch**: local extensions still require a CUDA Toolkit matching the PyTorch CUDA build. Rerun the installer in the intended environment to prepare matching CUDA, GCC/G++, and Rust tooling, then rebuild the extensions.
 
 ### Optional installation checks
 
-The installation script already checks CUDA execution, core imports, and dependency consistency. To diagnose a failed installation or an environment change, rerun these checks in the active environment:
+The installation script includes checks for CUDA execution, core imports, and dependency consistency. To diagnose a failed installation or an environment change, rerun these checks in the active environment:
 
 ```bash
 python -c "from importlib.metadata import version; import torch, vllm; print(torch.__version__, version('vllm'), torch.version.cuda); print(torch.ones(1, device='cuda'))"
@@ -25,7 +27,7 @@ aegaeon --help
 aegaeon start --help
 ```
 
-Verify that the reported versions are PyTorch `2.11.0+cu129`, vLLM `0.26.0+cu129`, and CUDA `12.9`. The package uses lazy exports; import the modules above individually to check its CUDA extension and loader.
+The tested cu129 route should report PyTorch `2.11.0+cu129`, vLLM `0.26.0+cu129`, and CUDA `12.9`. For the cu130 route, which has not completed end-to-end testing, verify PyTorch base version `2.11.0` (the displayed version can include a CUDA suffix), vLLM `0.26.0`, and CUDA `13.0`. The package uses lazy exports; import the modules above individually to check its CUDA extension and loader. These are installation checks only; see the [QuickStart](quickstart.md) and [graph archive guide](cuda-graphs.md) for inference and CUDA Graph verification.
 
 ## Ray and GPUs
 
@@ -64,6 +66,8 @@ Preserve the specific host-registration error and inspect both shared-memory cap
 **Streaming output is delayed**: use curl -N and inspect proxy buffering, networking, and first-load costs. **Outstanding remains nonzero after disconnect**: backend execution continues to its stopping condition, and cleanup waits for completion. **YAML changes have no effect**: restart the service; global registries do not support hot reload. **CLI engine counts have no effect**: normal startup uses ServerConfig; change YAML.
 
 ## Foundry
+
+The tested Foundry and CUDA Graph route uses cu129 / CUDA 12.9. Foundry builds and SAVE/LOAD with CUDA 13.0 have not completed end-to-end testing. The CUDA 12.9 compatibility package linked below applies only to CUDA 12.9 environments. Use a separate environment after switching versions, rebuild the extensions and Foundry, and use a new archive directory.
 
 **NumPy import failure / NP_SUPPORTED_MODULES**: loading the system `libstdc++` can fail when NumPy's dependencies require a newer version. For an `NP_SUPPORTED_MODULES` error, first inspect earlier NumPy or `GLIBCXX_*` import errors in the full traceback. Add `$CONDA_PREFIX/lib` to `LD_LIBRARY_PATH` before starting Python. If an older driver also needs a compatibility library, keep that library first and Conda `lib` second, then start a fresh process:
 

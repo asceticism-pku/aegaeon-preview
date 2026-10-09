@@ -2,6 +2,8 @@
 
 This example uses one Linux host, one available A100 40 GB GPU, Simple mode, TP=1, and CUDA Graphs disabled. Complete [installation](installation.md), then run the following commands from the repository root.
 
+Fresh installation and actual serving requests for this guide were tested with cu129 / CUDA 12.9. The default installer selects CUDA 13.0 after driver and GPU checks pass; otherwise, it falls back to cu129 before installing packages. The tested driver `535.247.01` environment selects cu129. The [CUDA 13.0 route](installation.md#cuda-130-route-not-end-to-end-tested) is experimental and has not completed project end-to-end testing. Use `--cuda cu129` to force the tested route.
+
 The repository includes the example configuration and matching profiles. For other models or GPUs, adjust the [configuration](configuration.md) and collect matching [profiles](profiling.md).
 
 ## 1. Prepare the model and configuration

@@ -11,7 +11,7 @@ Aegaeon is a multi-LLM serving system for workloads where many models receive sp
 
 Model weights are cached in host memory and prefetched for upcoming execution, while request KV Cache is moved between CPU and GPU as models switch. Together with profile-guided Decode scheduling, these mechanisms let the system reuse the same GPU engines across models without keeping every model resident on the GPU.
 
-The [SOSP '25 paper](https://doi.org/10.1145/3731569.3764815) ([author PDF](https://ennanzhai.github.io/pub/sosp25-aegaeon.pdf)) reports that Aegaeon sustained 2–2.5× the request arrival rate of ServerlessLLM under the evaluated SLO targets. In the paper's Alibaba Cloud Model Studio beta deployment, it reduced the GPU count by 82% (1,192 to 213).
+The [SOSP '25 paper](https://doi.org/10.1145/3731569.3764815) reports that Aegaeon sustained 2–2.5× the request arrival rate of ServerlessLLM under the evaluated SLO targets. In the paper's Alibaba Cloud Model Studio beta deployment, it reduced the GPU count by 82% (1,192 to 213).
 
 ## Start here
 
@@ -30,7 +30,7 @@ The [SOSP '25 paper](https://doi.org/10.1145/3731569.3764815) ([author PDF](http
 
 ## Current release
 
-The validated public support scope covers text-only models with greedy decoding, using vLLM model implementations and compute kernels, with Tensor Parallel and Pipeline Parallel fixed at 1. It provides Chat and Completion APIs, SSE streaming, dynamic model management, runtime observability, and model-specific function tool calling through vLLM tool parsers. Multimodal input, random sampling, and quantization configuration are outside the supported scope. See [Features and Compatibility](capabilities.md) for the supported model and interface scope, parallelism constraints, and optional optimizations.
+The current release uses vLLM model implementations and compute kernels and serves text-only models with greedy decoding, with Tensor Parallel and Pipeline Parallel fixed at 1. It provides Chat and Completion APIs, SSE streaming, dynamic model management, runtime observability, and model-specific function tool calling through vLLM tool parsers. Multimodal input, random sampling, and quantization configuration are outside the supported scope. See [Features and Compatibility](capabilities.md) for the supported model and interface scope, parallelism constraints, and optional optimizations.
 
 ## Documentation
 
