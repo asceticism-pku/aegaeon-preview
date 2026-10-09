@@ -8,14 +8,15 @@ PrefillEstimator and DecodeEstimator fit LinearRegression models from JSON colle
 
 ```text
 profiles/
-  qwen3_4b/
-    A100-PCIE-40GB/
-      i32b1.json
-      i64b1.json
-      ...
+  Qwen/
+    Qwen3-4B/
+      A100-PCIE-40GB/
+        i32b1.json
+        i64b1.json
+        ...
 ```
 
-Model keys prefer explicit profile aliases; otherwise names are normalized with compatibility checks for old directories. Device keys prefer DeviceSpec.extra.profile, then probe CUDA product names and logical device names.
+The layout matches `profile: Qwen/Qwen3-4B` in the [QuickStart](quickstart.md) and the bundled A100 profile data. Model keys prefer explicit profile aliases; otherwise names are normalized with compatibility checks for old directories. Device keys prefer DeviceSpec.extra.profile, then probe CUDA product names and logical device names.
 
 JSON must provide the fields needed by the sampler and estimator, including prefill_latencies and decode_latencies. Latency extraction sorts samples, removes the smallest and largest, then averages the rest; one or two samples are insufficient.
 
@@ -34,12 +35,12 @@ The batch script requests max-model-len=8192 and gpu-memory-utilization=0.90. If
 ## Collect one point
 
 ```bash
-mkdir -p profiles/qwen3_4b/A100-PCIE-40GB
+mkdir -p profiles/Qwen/Qwen3-4B/A100-PCIE-40GB
 CUDA_VISIBLE_DEVICES=0 python benchmark/benchmark_latency.py \
   --model /srv/models/Qwen3-4B --dtype bfloat16 --enforce-eager \
   --tensor-parallel-size 1 --max-model-len 4096 --gpu-memory-utilization 0.90 \
   --input-len 32 --output-len 10 --batch-size 1 \
-  --output-json profiles/qwen3_4b/A100-PCIE-40GB/i32b1.json
+  --output-json profiles/Qwen/Qwen3-4B/A100-PCIE-40GB/i32b1.json
 ```
 
 One point confirms the collection path. A scheduling profile needs the target input lengths, batch sizes, and context ranges, together with recorded regression error.

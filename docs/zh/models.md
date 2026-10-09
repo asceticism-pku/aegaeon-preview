@@ -10,9 +10,11 @@
 models:
   - name: Qwen/Qwen3-4B
     path: /srv/models/Qwen3-4B
-    profile: qwen3_4b
+    profile: Qwen/Qwen3-4B
     max_model_len: 4096
 ```
+
+此示例使用仓库自带的 `profiles/Qwen/Qwen3-4B/A100-PCIE-40GB` 数据，与 [QuickStart](quickstart.md) 的 profile 别名一致。更改 `profile` 时，请先在新别名对应的目录下采集匹配数据，再启动服务。
 
 ## 下载来源
 

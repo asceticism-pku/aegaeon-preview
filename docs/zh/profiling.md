@@ -6,14 +6,15 @@ PrefillEstimator 和 DecodeEstimator 使用目标 GPU 上真实采集的 JSON �
 
 ```text
 profiles/
-  qwen3_4b/
-    A100-PCIE-40GB/
-      i32b1.json
-      i64b1.json
-      ...
+  Qwen/
+    Qwen3-4B/
+      A100-PCIE-40GB/
+        i32b1.json
+        i64b1.json
+        ...
 ```
 
-模型键优先显式 profile；未设置时规范化名字，并存在旧目录兼容探测。设备键优先 DeviceSpec.extra.profile，再探测 CUDA 产品名和逻辑设备名。
+此目录与 [QuickStart](quickstart.md) 的 `profile: Qwen/Qwen3-4B` 及仓库自带的 A100 profile 数据一致。模型键优先显式 profile；未设置时规范化名字，并存在旧目录兼容探测。设备键优先 DeviceSpec.extra.profile，再探测 CUDA 产品名和逻辑设备名。
 
 JSON 需要包含采样器和估计器使用的 prefill_latencies、decode_latencies 等字段。时延提取会排序、去掉首尾值再取平均，因此每组至少采集 3 个样本；实际测量建议增加重复次数。
 
@@ -32,12 +33,12 @@ CUDA_VISIBLE_DEVICES=0 python profiles/do_profile.py --model-config /srv/aegaeon
 ## 单点采集
 
 ```bash
-mkdir -p profiles/qwen3_4b/A100-PCIE-40GB
+mkdir -p profiles/Qwen/Qwen3-4B/A100-PCIE-40GB
 CUDA_VISIBLE_DEVICES=0 python benchmark/benchmark_latency.py \
   --model /srv/models/Qwen3-4B --dtype bfloat16 --enforce-eager \
   --tensor-parallel-size 1 --max-model-len 4096 --gpu-memory-utilization 0.90 \
   --input-len 32 --output-len 10 --batch-size 1 \
-  --output-json profiles/qwen3_4b/A100-PCIE-40GB/i32b1.json
+  --output-json profiles/Qwen/Qwen3-4B/A100-PCIE-40GB/i32b1.json
 ```
 
 一个采样点只用于确认采集链路。用于调度的 profile 应覆盖目标输入长度、batch 和上下文范围，并记录回归误差。

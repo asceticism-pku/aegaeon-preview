@@ -10,9 +10,11 @@ The model name identifies client requests, the profile alias identifies performa
 models:
   - name: Qwen/Qwen3-4B
     path: /srv/models/Qwen3-4B
-    profile: qwen3_4b
+    profile: Qwen/Qwen3-4B
     max_model_len: 4096
 ```
+
+This example uses the bundled `profiles/Qwen/Qwen3-4B/A100-PCIE-40GB` data and the same profile alias as the [QuickStart](quickstart.md). If you change `profile`, collect matching data under the new alias before starting the service.
 
 ## Download sources
 
