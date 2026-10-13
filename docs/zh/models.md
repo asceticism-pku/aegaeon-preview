@@ -16,6 +16,15 @@ models:
 
 此示例使用仓库自带的 `profiles/Qwen/Qwen3-4B/A100-PCIE-40GB` 数据，与 [QuickStart](quickstart.md) 的 profile 别名一致。更改 `profile` 时，请先在新别名对应的目录下采集匹配数据，再启动服务。
 
+| 配置字段 | 本例中的含义 |
+| --- | --- |
+| `models[].name` | API 请求中 `model` 字段使用的公开模型标识：`Qwen/Qwen3-4B` |
+| `models[].path` | 本地 checkpoint 目录：`/srv/models/Qwen3-4B` |
+| `models[].profile` | profile 根目录下的相对模型目录：`Qwen/Qwen3-4B` |
+| `devices[].profile` | 上述模型目录下的设备目录：`A100-PCIE-40GB` |
+
+模型与设备别名共同定位到 `<profile-root>/Qwen/Qwen3-4B/A100-PCIE-40GB`。使用仓库自带数据时保留这两个别名；更换本地 checkpoint 路径无需更改别名。采集命令和查找规则见 [Profiling](profiling.md)。
+
 ## 下载来源
 
 `model_downloader.py` 默认使用 ModelScope；可选择 Hugging Face：
@@ -56,7 +65,7 @@ Chat 使用 tokenizer 的 apply_chat_template。当前 API 对归一化名称含
 
 ## profile 和参数估算
 
-显式 profile 推荐保持稳定且使用安全相对别名。未设置时，`Qwen/Qwen3.5-9B` 可规范化为 `qwen3_5_9b`。绝对路径或 `..` 路径片段会被拒绝。
+显式 profile 推荐保持稳定且使用安全相对别名。显式别名保留原有拼写与目录分隔符，因此 `Qwen/Qwen3-4B` 与 `qwen3_4b` 指向不同目录。未设置时，`Qwen/Qwen3.5-9B` 规范化为 `qwen3_5_9b`。绝对路径或 `..` 路径片段会被拒绝。
 
 显式 `params` 优先于自动计算，按 [2^30 换算](configuration.md) 后用于估算。省略该字段时，自动计算会遍历 checkpoint 根目录中所有 `.safetensors` 文件的张量形状并求元素总数；没有这类文件或读取失败时，需显式提供 `params`。自动 CPU 权重缓存估算为参数量 × 2 × 1.2；实际 GPU 峰值还需计入加载与运行时开销。
 

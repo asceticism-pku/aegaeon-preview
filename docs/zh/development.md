@@ -40,6 +40,18 @@ python -m pytest tests/test_cuda_graph_catalog_config.py
 
 该测试模块检查图存档目录规则，运行环境应安装 pytest 并包含正确的项目导入路径。新增运行逻辑应覆盖真实失败分支和边界条件。
 
+安装器回归测试用运行 pytest 的解释器创建临时环境，因此应在受支持的 Python 3.10 环境中执行。若用 Python 3.12 运行，安装器会先触发预期的 Python 版本检查，无法进入各个测试场景。
+
+```bash
+python --version
+python -m pytest tests/test_docs_checker.py tests/test_install_quickstart.py -q
+python -m pytest tests/test_foundry_runtime_active_model.py -q
+```
+
+第一条命令应显示 Python 3.10.x。上述检查覆盖文档、安装器预检查和使用 mock 的 Foundry 存档处理，不会构建原生扩展，也不验证 GPU 服务。原生构建与导入仍需满足[安装工具链](installation.md)要求。
+
+`tests/test_init.py` 和 `tests/test_serve*.py` 是历史 Ray/GPU 集成示例，不属于默认无 GPU 测试集。尤其是 `test_init.py` 仍在未初始化全局服务配置的情况下构造 `LLMService`。用于集成验证前，应按当前服务配置、模型与设备 registry 适配该示例，并准备真实 checkpoint 路径及足够的 Ray/cache 资源。所选逻辑测试通过不代表 `tests/` 下全部测试均通过。
+
 ## 文档维护
 
 中英文文档使用 MkDocs Material 构建，配置文件分别为 `mkdocs.zh.yml` 和 `mkdocs.en.yml`。在独立文档环境安装依赖后运行：
@@ -52,7 +64,7 @@ python -m mkdocs build --strict -f mkdocs.zh.yml
 
 英文站点使用 `python -m mkdocs serve -f mkdocs.en.yml` 或 `python -m mkdocs build --strict -f mkdocs.en.yml`。发布时将两份构建结果放在同级 `zh/`、`en/` 目录，语言菜单即可跳转到对应文章。
 
-新增或修改参数时，同步更新两种语言的配置参考、CLI、HTTP 请求字段和示例。提交文档前运行 `python docs/check_docs.py`，并完成严格构建。
+新增或修改参数时，同步更新两种语言的配置参考、CLI、HTTP 请求字段和示例；增删顶层类或函数时，也需同步源码模块索引。提交文档前运行 `python docs/check_docs.py`，并完成严格构建。
 
 生成支持中英文切换的离线文档页面：
 

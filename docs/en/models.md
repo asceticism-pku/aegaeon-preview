@@ -16,6 +16,15 @@ models:
 
 This example uses the bundled `profiles/Qwen/Qwen3-4B/A100-PCIE-40GB` data and the same profile alias as the [QuickStart](quickstart.md). If you change `profile`, collect matching data under the new alias before starting the service.
 
+| Field | Meaning in this example |
+| --- | --- |
+| `models[].name` | Public model identifier sent in the API request's `model` field: `Qwen/Qwen3-4B` |
+| `models[].path` | Local checkpoint directory: `/srv/models/Qwen3-4B` |
+| `models[].profile` | Relative model directory under the profile root: `Qwen/Qwen3-4B` |
+| `devices[].profile` | Device directory below that model directory: `A100-PCIE-40GB` |
+
+The model and device aliases together resolve to `<profile-root>/Qwen/Qwen3-4B/A100-PCIE-40GB`. Keep these aliases when using the bundled data; changing the local checkpoint path does not require changing either alias. See [Profiling](profiling.md) for collection commands and lookup rules.
+
 ## Download sources
 
 `model_downloader.py` uses ModelScope by default; Hugging Face is also available:
@@ -56,7 +65,7 @@ Chat uses the tokenizer's apply_chat_template. For normalized model names contai
 
 ## Profiles and parameter estimates
 
-Use a stable, safe relative profile alias. Without an explicit alias, `Qwen/Qwen3.5-9B` can normalize to `qwen3_5_9b`. Absolute paths and `..` path segments are rejected.
+Use a stable, safe relative profile alias. An explicit alias preserves its spelling and directory separators, so `Qwen/Qwen3-4B` and `qwen3_4b` select different directories. Without an explicit alias, `Qwen/Qwen3.5-9B` normalizes to `qwen3_5_9b`. Absolute paths and `..` path segments are rejected.
 
 Explicit `params` takes precedence over automatic counting and uses the [2^30 conversion](configuration.md) for estimates. Otherwise, counting sums tensor elements from the shapes in all `.safetensors` files at the checkpoint root. Supply `params` explicitly if those files are absent or reading fails. Automatic CPU weight cache sizing estimates parameters × 2 × 1.2. Actual GPU peak memory also includes loading and runtime allocations.
 

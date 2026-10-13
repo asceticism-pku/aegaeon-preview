@@ -12,6 +12,38 @@
 | SLO / qos | 使用具体源码和公式定义，每种定义单独列示 |
 | CV | population stddev/mean，说明引擎集合与 token计数范围 |
 
+## 通过 HTTP 重放仓库中的 workload
+
+先按[安装指南](installation.md)和[快速开始](quickstart.md)准备运行环境，在 Aegaeon 源码仓库根目录执行。
+`benchmark/config-pd-2gpu.yaml` 是双 GPU 的 PD 示例，注册了 `qwen2_5_7b` 和
+`qwen2_1_5b`；启动前必须将其中特定主机的模型路径和设备设置改为本机实际配置。
+在独立终端启动服务：
+
+```bash
+aegaeon start --config benchmark/config-pd-2gpu.yaml --ray-address local
+```
+
+服务启动完成后，检查 API 并重放已有 CSV：
+
+```bash
+curl --fail http://127.0.0.1:8000/health
+curl --fail http://127.0.0.1:8000/v1/models
+python aegaeon/test_api.py --csv workloads/synth-1-0.1-1.0-1.0.csv \
+  --models qwen2_5_7b qwen2_1_5b --request-timeout 300
+```
+
+另两份 HTTP workload 是 `workloads/synth-2-0.1-1.0-1.0.csv` 和
+`workloads/synth-2-2.0-1.0-1.0.csv`，使用同一命令替换 CSV 路径即可。表头为
+`Request Time,Model Name,Input Length,Output Length`；到达时间是相对开始时刻的
+`HH:MM:SS.mmm`，`synth_model_00/01` 按顺序映射到 `--models` 的部署名称。
+客户端将 `"test "` 重复 Input Length 次，**不保证实际 tokenizer token 数等于该字段**。
+Output Length 是请求的 `max_tokens` 上限，遇到 EOS 可以提前结束。
+
+客户端发送非流式请求，统计可读取的 HTTP 200 响应、逐请求延迟和失败/超时数；有任意失败就以非零状态退出。
+300 秒超时从各请求的到达等待结束后起算；总耗时包括所有到达等待。
+该工具不测量 TTFT、TPOT 或实际输出 tokens/s。报告性能时保存客户端和服务日志，并核对实际 token 数；
+HTTP 成功本身也不等于生成内容正确。
+
 ## 在线接口演示工具
 
 ```bash
@@ -24,9 +56,19 @@ python benchmark/demo_api.py \
 
 该工具连接已经启动的 API；示例模型名需替换为配置中已部署的模型名。结果写到 benchmark/demo-output.json，重复运行会覆盖同一路径。默认到达间隔服从指数分布、按模型轮转，普通定时模式固定 max_tokens=500；`--max-tokens` 只作用于 `--single`。输入是固定文本，CSV 的 input_tokens 被读取但未用于构造输入。流式结果的 `tokens` 是非空文本 chunk 数，非流式结果取 usage.completion_tokens；实验报告需区分两种口径。
 
+它的 `--csv` 使用下节的历史 snake_case 表头；仓库的 `workloads/synth-*.csv`
+使用上节的 HTTP 重放客户端。该工具的帮助也需先安装 aiohttp。
+部分 benchmark 脚本仍在解析帮助前加载可选依赖：latency 需 vLLM，直接 E2E 需 Ray 和服务运行时；
+placement/Work Stealing 的帮助需 Ray、PyYAML 和 psutil，实际执行再加载服务运行时。
+包入口的 lazy import 不会让这些脚本脱离依赖。
+`compare_work_stealing_results.py --help` 和 `profiles/do_profile.py --help`
+可仅用标准库执行；模拟器帮助需安装下节列出的 CPU 依赖。
+
 ## 当前历史脚本的边界
 
-端到端重放脚本为 `benchmark/benchmark_e2e_from_workload.py`。
+历史的直接端到端重放脚本为 `benchmark/benchmark_e2e_from_workload.py`，与上面的当前 HTTP
+客户端不同。它的默认 workload 文件没有随仓库提供，必须显式传入已有 `--workload-csv` 和
+`--model-config`/`--output-json`；当前 HTTP 流程使用已有 CSV 和 YAML 配置。
 
 `benchmark/benchmark_e2e_from_workload.py` 的 Ray 地址固定为原实验集群，每节点固定 1 Prefill + 1 Decode、model_cache_size=0，CPU slab 数来自命令参数；这些设置不会从 YAML 的 server 拓扑读取。使用前应改成当前集群地址和目标配置。
 
@@ -54,4 +96,73 @@ Graph 工具有 benchmark_cuda_graph_latency.py、benchmark_foundry_three_model_
 
 ## 模拟器
 
-`sim/` 基于 SimPy，使用估计执行时间和 trace 研究调度策略，详见 `sim/README.md`。报告中请将仿真结果与 GPU 实测分开，并记录仿真采用的模型、设备和策略定义。
+`sim/` 基于 SimPy，使用估计执行时间研究调度策略。在 Aegaeon 源码仓库根目录、Python 3.10+ 虚拟环境中，
+可独立运行的 CPU 正确性检查为：
+
+```bash
+python -m pip install aenum typing_extensions simpy==4.1.1 numpy scikit-learn matplotlib pytest
+python -m sim.simulate --help
+python -m pytest tests/test_simulator.py -q
+```
+
+预期为 13 项通过，包含两种策略下仓库的 81 请求 workload。
+测试在临时目录生成明确标记为 synthetic 的 profile；这些延迟是虚构的测试数据，不是 GPU 实测。
+
+性能仿真需要真实 profile；仓库未提供 `sim/simdata/execution/`。
+按[profiling 指南](profiling.md)在目标 GPU 上采集模型执行时间；当前
+`benchmark/benchmark_latency.py` 除服务端采样数组外，还输出以秒为单位的
+`avg_prefill_latency` 和 `avg_decode_latency`。
+按下方采集、安装步骤，将匹配的实测数据放到
+`<profile-root>/<模拟器模型>/<模拟器设备>/i<input_length>b<batch_size>.json`。
+服务 YAML alias、CUDA 产品名称与模拟器名称不同；使用前需核对模型 checkpoint、设备参数与测量单位，
+再建立匹配的数据目录。名称映射保留原始测量的模型和硬件来源。
+
+### 采集与安装实测 profile
+
+准备包含真实 Qwen2.5-7B、Yi-9B checkpoint 路径和显式 profile 别名的模型 YAML，
+配置格式见 [profiling 指南](profiling.md)。采集器在指定 GPU 上以 TP=1 运行 vLLM，
+需要完整 GPU 运行环境；该采集步骤与上面的 CPU 模拟器检查分别执行。
+在 Aegaeon 源码仓库根目录运行：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 AEGAEON_PROFILE_ROOT="$PWD/work/measured-profiles" \
+  python profiles/do_profile.py \
+  --model-config /absolute/path/to/simulation-profile-models.yaml --tp 1
+```
+
+输出位于
+`work/measured-profiles/<模型-profile>/<CUDA-产品名>/i<input_length>b<batch_size>.json`，
+均值单位为秒。两种延迟估计器均需覆盖不同输入长度和 batch 大小的有效训练点。
+随结果保留采集 YAML，以及 checkpoint、硬件、后端和采样信息。
+
+确认测量与模拟器的模型、上下文假设及 **80 GB A100** 设备匹配后，将下面的源路径
+替换为实际测量目录，并安装两种模型的数据：
+
+```bash
+QWEN_MEASURED_DIR=/absolute/path/to/measured-qwen/product-name
+YI_MEASURED_DIR=/absolute/path/to/measured-yi/product-name
+mkdir -p work/sim-execution/qwen2.5-7b/a100 work/sim-execution/yi-9b/a100
+cp "$QWEN_MEASURED_DIR"/i*b*.json work/sim-execution/qwen2.5-7b/a100/
+cp "$YI_MEASURED_DIR"/i*b*.json work/sim-execution/yi-9b/a100/
+```
+
+目录映射后仍需保留原始元数据。模拟器检查有效训练 profile 是否存在，
+checkpoint 和硬件是否对应则属于实验准备工作。只有原始延迟数组的旧服务 profile
+需按明确的平均规则补齐均值后，再作为模拟器输入。
+
+### 运行实测 profile 仿真
+
+准备好 `work/sim-execution` 后运行：
+
+```bash
+python -m sim.simulate --num-models 8 --arrival-rate 0.1 --devices a100 \
+  --profile-root work/sim-execution --job-timeout 300 \
+  --output-dir work/sim-results --name measured-a100
+```
+
+八模型 trace 需要 `qwen2.5-7b/a100` 和 `yi-9b/a100` 两组数据；模拟器的 `a100` 表示
+80 GB 设备模型。缺失或没有可用训练数据会在启动子进程前明确失败。
+结果保存到 `work/sim-results/measured-a100.json`，按 SeLLM/SeLLM+ 策略和请求 ID 分组。
+成功请求的数组依次为模拟 TTFT 和相邻 token 间隔，单位均为毫秒；失败请求保存为 `[-1]`。
+除进程状态外也要检查这些数组。报告中将仿真与 GPU 实测分开，并记录 profile 来源、模型/设备假设和策略。
+只有补齐匹配的实测 profile 后，性能仿真流程才具备完整输入。
