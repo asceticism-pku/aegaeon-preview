@@ -8,23 +8,22 @@ The repository includes the example configuration and matching profiles. For oth
 
 ## 1. Prepare the model and configuration
 
-The checked-in template is [`docs/en/examples/simple.yaml`](examples/simple.yaml). The commands below copy it to `$PWD/aegaeon.yaml` and set the model path. `aegaeon.yaml` is your local configuration file, created by this step; it is not included at the repository root.
+Use [`docs/en/examples/simple.yaml`](examples/simple.yaml) directly. Set its model `path` to your complete local checkpoint directory.
 
 Download the complete `Qwen/Qwen3-4B` checkpoint. If your network requires a proxy, follow the [model download guide](models.md#download-and-proxy-troubleshooting) first. For an existing complete local checkpoint, set `MODEL_DIR` to its absolute path and skip the download command.
 
 ```bash
 MODEL_DIR="$HOME/aegaeon-models/Qwen3-4B"
 hf download Qwen/Qwen3-4B --local-dir "$MODEL_DIR"
-cp docs/en/examples/simple.yaml "$PWD/aegaeon.yaml"
-sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" "$PWD/aegaeon.yaml"
+sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" docs/en/examples/simple.yaml
 ```
 
 ## 2. Start the service
 
-Complete Step 1 first, then start the service from the same repository root. `--config "$PWD/aegaeon.yaml"` points to the local file created above; if it is missing, return to Step 1 to copy the template and set the model path. Select an available GPU; the example below uses GPU 0. `local` creates a local Ray runtime with the `node_0` resource.
+Run from the repository root after setting the model path in `docs/en/examples/simple.yaml`. Select an available GPU; the example below uses GPU 0. `local` creates a local Ray runtime with the `node_0` resource.
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 aegaeon start --config "$PWD/aegaeon.yaml" \
+CUDA_VISIBLE_DEVICES=0 aegaeon start --config docs/en/examples/simple.yaml \
   --host 127.0.0.1 --port 8000 --ray-address local
 ```
 

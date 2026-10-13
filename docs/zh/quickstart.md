@@ -8,23 +8,22 @@
 
 ## 1. 准备模型与配置
 
-仓库提供的模板是 [`docs/zh/examples/simple.yaml`](examples/simple.yaml)。下方命令将它复制到 `$PWD/aegaeon.yaml`，并设置模型路径。`aegaeon.yaml` 是这一步创建的本地配置文件，仓库根目录并未自带该文件。
+直接使用仓库现有的 [`docs/zh/examples/simple.yaml`](examples/simple.yaml)，将其中的模型 `path` 设置为完整本地模型目录。
 
 下载完整的 `Qwen/Qwen3-4B` checkpoint。需要代理时，先按[模型下载说明](models.md#下载与代理排障)配置网络。已有完整本地模型时，将 `MODEL_DIR` 改为其绝对路径，并跳过下载命令。
 
 ```bash
 MODEL_DIR="$HOME/aegaeon-models/Qwen3-4B"
 hf download Qwen/Qwen3-4B --local-dir "$MODEL_DIR"
-cp docs/zh/examples/simple.yaml "$PWD/aegaeon.yaml"
-sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" "$PWD/aegaeon.yaml"
+sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" docs/zh/examples/simple.yaml
 ```
 
 ## 2. 启动服务
 
-先完成第 1 步，再从同一仓库根目录启动服务。`--config "$PWD/aegaeon.yaml"` 指向上一步创建的本地文件；如果文件不存在，请返回第 1 步复制模板并设置模型路径。选择一张空闲 GPU；下方以 GPU 0 为例。`local` 自动创建带 `node_0` 资源的本地 Ray runtime。
+设置好 `docs/zh/examples/simple.yaml` 中的模型路径后，从仓库根目录启动。选择一张空闲 GPU；下方以 GPU 0 为例。`local` 自动创建带 `node_0` 资源的本地 Ray runtime。
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 aegaeon start --config "$PWD/aegaeon.yaml" \
+CUDA_VISIBLE_DEVICES=0 aegaeon start --config docs/zh/examples/simple.yaml \
   --host 127.0.0.1 --port 8000 --ray-address local
 ```
 
