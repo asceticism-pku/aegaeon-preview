@@ -4,6 +4,8 @@
 
 | 变量 | 默认 / 来源 | 说明 |
 |---|---|---|
+| `AEGAEON_CUDA` | auto | 源码安装路线：auto、cu129、cu130 或 core；core 配合 AEGAEON_BUILD_CUDA=0 |
+| `AEGAEON_BUILD_CUDA` | 1 | 构建 aegaeon.ops；0 省略扩展，但保留所选运行时依赖 |
 | `AEGAEON_LOG_FILE` | output.log | logger 导入时读取，LLMService 显式转发给 Controller |
 | `AEGAEON_TTFT_SLO` | 10 | 秒；utils导入时读取，未在LLMService显式actor白名单中 |
 | `AEGAEON_TPOT_SLO` | 0.1 | 秒；utils导入时读取，未在LLMService显式actor白名单中 |
@@ -30,6 +32,7 @@
 | `SERVERLESSLLM_URL` | http://127.0.0.1:8343 | 外部演示代理地址 |
 | `AEGAEON_MODEL_ROOT` | 省略 | actor 会传播该值；主下载函数当前省略此入口 |
 | `AEGAEON_MODEL_ROOTS` | 省略 | actor 会传播该值；主下载函数当前省略此入口 |
+| `AEGAEON_PROFILE_ROOT` | 源码仓库的 profiles 目录 | 实测模型/设备 latency profile 根目录；传播到 actors，也用于批量 profiling 输出 |
 | `AEGAEON_MODEL_DOWNLOAD_PROXY` | 省略 | 用于传播及 profile 脚本拼接；主下载函数当前省略此入口 |
 | `LD_LIBRARY_PATH` | 环境 | 库搜索目录，compat路径可前置 |
 | `LD_PRELOAD` | 内部构造 | Foundry hook在Worker启动前设置 |

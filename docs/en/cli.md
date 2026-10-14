@@ -1,6 +1,47 @@
 # CLI Reference
 
-setup.py registers `aegaeon=aegaeon.cli:main`; `python -m aegaeon` is also available. Commands are start, deploy, and undeploy.
+setup.py registers `aegaeon=aegaeon.cli:main`; `python -m aegaeon` is also available. Commands are doctor, start, deploy, and undeploy.
+
+## doctor
+
+```bash
+aegaeon doctor
+CUDA_VISIBLE_DEVICES=0 aegaeon doctor --config /srv/aegaeon/config.yaml --check-cuda
+aegaeon doctor --config /srv/aegaeon/config.yaml --models Qwen/Qwen3-4B --strict
+```
+
+| Option | Parser default | Meaning |
+|---|---|---|
+| --config | None | YAML configuration for topology, local model/profile, and memory-budget checks |
+| --models | None | Comma-separated startup models; overrides startup_models, as in start |
+| --tensor-parallel-size | None | Explicit nonzero value overrides YAML; 0 falls back to YAML; only TP=1 is supported |
+| --check-cuda | false | Run small PyTorch/CuPy CUDA operations, import vLLM's native extension, and probe one-page CUDA host registration on an allocated GPU |
+| --strict | false | Exit with status 1 for warnings as well as failures |
+
+The default checks cover runtime imports including `aegaeon.ops`, pinned backend
+versions, the CUDA/C++ toolchain, Rust/Cargo availability, shared-memory
+write/mmap and capacity, available host memory, and memlock limits. `--config` adds startup model
+selection, readable local model assets and weight shards, declared decode
+profile candidates, topology constraints, and the configured shared-memory budget. These
+checks read local files without downloading models or starting Ray.
+
+Results are `OK`, `WARN`, or `FAIL`. A failure exits with status 1. Warnings keep
+the normal exit status at 0 unless `--strict` is set. Examples include a
+memlock allowance below the budget, a finite allowance with an unknown budget,
+and missing Rust/Cargo with installed extensions.
+Plain `doctor` omits CUDA tensor operations; run `--check-cuda` on an allocated
+GPU on each worker node. Checks apply to the current node; full-size host-memory
+registration, Ray cluster readiness, and real inference remain separate
+acceptance steps. See [runtime checks](installation.md#runtime-checks-and-wheel-installations).
+
+`start` passes its configuration and model/TP overrides to static configuration
+and local host checks before importing the API, with CUDA queries omitted.
+Definite failures such as invalid local model files or insufficient cache memory
+block startup. Static profile candidates that are missing or invalid produce
+`WARN`; a static `OK` also leaves the actual worker GPU unverified.
+Use `doctor --config PATH --check-cuda` for actual GPU/profile checks: missing or
+invalid profiles for GPUs required by the engines then produce `FAIL`.
+`--strict` also returns nonzero for the static uncertainties reported as warnings.
 
 ## start
 
@@ -65,9 +106,10 @@ Busy replicas enter DRAINING and appear as partial failures; the CLI exits with 
 
 ```bash
 aegaeon --help
+aegaeon doctor --help
 aegaeon start --help
 aegaeon deploy --help
 aegaeon undeploy --help
 ```
 
-The CLI currently provides `start`, `deploy`, and `undeploy`. Query status and lists through HTTP, run benchmark/profile repository scripts, and stop the service through the process manager.
+The CLI provides `doctor`, `start`, `deploy`, and `undeploy`. Query status and lists through HTTP, run benchmark/profile repository scripts, and stop the service through the process manager.

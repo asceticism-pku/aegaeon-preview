@@ -6,7 +6,7 @@
 
 ## 安装与导入
 
-**setup时找不到torch**：setup.py顶层导入torch；按安装顺序先准备匹配torch再构建。**aegaeon.ops缺失或undefined symbol**：检查扩展是否以当前torch/CUDA构建，环境是否更换过torch，nvcc与wheel是否兼容。**quick_model_loader._rlib缺失**：检查Rust工具链与editable扩展编译结果。**vLLM内部模块导入失败**：主项目使用版本敏感内部接口，检查vllm==0.26.0而不是直接升级到任意最新版。
+**源码构建缺少 Torch 或 CUDA 不匹配**：pip 源码后端会为隔离构建选择匹配的 Torch，生成元数据时不导入它。使用 `--no-build-isolation` 时需自行提前准备所选 Torch。原生编译还需要匹配的 Toolkit；设置 `CUDA_HOME` 或使用 quickstart 安装器。**aegaeon.ops缺失或undefined symbol**：检查扩展是否以当前torch/CUDA构建，环境是否更换过torch，nvcc与wheel是否兼容。**quick_model_loader._rlib缺失**：检查Rust工具链与editable扩展编译结果。**vLLM内部模块导入失败**：主项目使用版本敏感内部接口，检查vllm==0.26.0而不是直接升级到任意最新版。
 
 **Conda 报 database is locked**：libmamba 的 SQLite 分片缓存锁冲突会触发该错误。创建环境时使用 `--solver classic`；安装脚本在未设置 `CONDA_PKGS_DIRS` 时指定独立包缓存路径，并在工具链安装时使用 classic solver。Foundry 依赖安装若仍在 `shards_cache` 报锁冲突，可在该次 `conda install` 命令前加 `CONDA_PLUGINS_USE_SHARDED_REPODATA=false`，关闭分片 repodata 缓存。实际命令见[CUDA Graph 安装步骤](cuda-graphs.md#安装-foundry)。
 

@@ -14,6 +14,8 @@
 
 ## Replay the bundled workloads through HTTP
 
+The three HTTP CSV examples are shipped with the source checkout; generated CSV results remain ignored by Git. Their header, model mapping and request counts are documented in `workloads/README.md`.
+
 Run from the Aegaeon source checkout root after completing the [installation](installation.md)
 and [quickstart](quickstart.md). `benchmark/config-pd-2gpu.yaml` is a two-GPU PD
 example with `qwen2_5_7b` and `qwen2_1_5b`; replace its host-specific checkpoint
@@ -60,27 +62,30 @@ python benchmark/demo_api.py \
 
 This tool connects to a running API; replace the example model name with a configured, deployed model. It writes benchmark/demo-output.json, overwriting that path on subsequent runs. Default arrival intervals are exponentially distributed and models rotate; timed mode fixes max_tokens=500, while `--max-tokens` applies only to `--single`. Input is fixed text: the CSV input_tokens field is read but does not construct the prompt. Streaming results count nonempty text chunks in `tokens`; nonstreaming results use usage.completion_tokens. Distinguish these units in reports.
 
-Its `--csv` option expects the historical snake_case schema below, **not** the
-bundled `workloads/synth-*.csv` schema. Run this tool's help in an environment
-with aiohttp installed. Several benchmark scripts still eagerly import optional
-packages before parsing help: latency needs vLLM; direct E2E needs Ray and
-serving-runtime imports; placement/Work Stealing help needs Ray, PyYAML, and
-psutil, while execution additionally loads the serving runtime. Lazy package initialization does not
-make these scripts dependency-free. `compare_work_stealing_results.py --help`
-and `profiles/do_profile.py --help` can run with the standard library alone;
-simulation help uses the CPU dependencies listed below.
+Its `--csv` option expects `request_id,timestamp,input_tokens,output_tokens`.
+`timestamp` is an arrival delay in seconds, `request_id` selects a model modulo
+the configured model count, and `output_tokens` sets `max_tokens`. The fixed
+prompt does not honor the requested `input_tokens` length. Use the HTTP replay
+client above for `workloads/synth-*.csv`, which has a different schema.
+Run this streaming demo's help in an environment with aiohttp installed.
+The latency, model-placement, Work Stealing, comparison, profiling, and HTTP
+workload help commands below need only the standard library; they do not
+initialize CUDA, Ray, or a model. Actual measurement and GPU smoke runs still
+need the compatible runtime, checkpoints, profiles, and adequate resources.
+The HTTP client needs aiohttp when it sends requests, and GPU configuration
+helpers need PyYAML when called.
 
-## Limitations of historical scripts
+```bash
+python benchmark/benchmark_latency.py --help
+python benchmark/model_placement_gpu_smoke.py --help
+python benchmark/work_stealing_gpu_smoke.py --help
+python benchmark/compare_work_stealing_results.py --help
+python profiles/do_profile.py --help
+python aegaeon/test_api.py --help
+```
 
-The historical direct end-to-end replay script is
-`benchmark/benchmark_e2e_from_workload.py`. It is separate from the current
-HTTP runner above. Its default workload file is not bundled: pass an existing
-`--workload-csv` and explicit `--model-config`/`--output-json` rather than relying
-on the old external artifact directory or missing benchmark assets.
-
-Its Ray address is fixed to the original experimental cluster. Each node fixes 1 Prefill + 1 Decode and model_cache_size=0, with CPU slab counts supplied by a command argument; these settings are not read from the YAML server topology. Change the address and topology to the current cluster and target configuration before use.
-
-CSV fields are request_id, timestamp, input_tokens, and output_tokens. Models are assigned from a seed, and prompts are slices of a fixed pre-encoded token list. Inputs beyond that list become shorter, and decode length follows a 4096-based truncation rule. This script therefore measures its transformed workload; report the actual prompt and output lengths.
+Simulation help uses the CPU dependencies listed below. The separate energy
+benchmark still imports optional packages before parsing help.
 
 ## Recommended experiment design
 
@@ -104,84 +109,53 @@ Report GPU/CPU/interconnect, driver, torch/vLLM versions, source, models, mode, 
 
 ## Simulator
 
-`sim/` uses SimPy and estimated execution times to study policies. From the
-Aegaeon source checkout root in a Python 3.10+ virtual environment, a self-contained CPU
-correctness check is:
+The simulator uses the existing repository `profiles/` directory by default.
+From a clean source checkout in a Python 3.10–3.14 environment:
 
 ```bash
-python -m pip install aenum typing_extensions simpy==4.1.1 numpy scikit-learn matplotlib pytest
-python -m sim.simulate --help
-python -m pytest tests/test_simulator.py -q
+python -m pip install -r sim/requirements.txt
+python -m sim.simulate --workload synth-8-0.1-1.0-1.0.csv \
+  --devices a100 --seed 0 --job-timeout 30 \
+  --output-dir work/sim-results --name historical-a100
+python -m pytest tests/test_simulator.py tests/test_sim_repository_profiles.py \
+  tests/test_sim_profile_collector.py -q
 ```
 
-Expect 13 passing tests, including both policies on the 81-request bundled
-workload. The tests use explicitly marked synthetic profiles in temporary
-directories; their latency values are invented and do not measure a GPU.
+The historical eight-model trace uses six Qwen2.5-7B and two Yi-1.5-9B-Chat
+aliases. Explicit name mappings resolve them to `profiles/qwen2_5_7b/A100`
+and `profiles/yi1_5_9b_chat/A100`; no data copying, symlinks, checkpoint
+downloads, Torch, vLLM, Ray or CUDA are needed. The default root is resolved
+relative to the simulator source location. `--profile-root PATH` confines
+lookup to that root, accepting canonical and serving directory layouts.
+See `sim/README.md` for the alias table and optional collection commands.
 
-Performance simulation needs measured profiles. `sim/simdata/execution/` is
-not bundled. Follow [profiling](profiling.md) to collect model execution times
-on the target GPU; current `benchmark/benchmark_latency.py` emits
-`avg_prefill_latency` and `avg_decode_latency` in seconds in addition to the
-serving sample arrays. Use the collection and staging steps below to place matching measurements under
-`<profile-root>/<simulator-model>/<simulator-device>/i<input_length>b<batch_size>.json`.
-Serving YAML aliases and CUDA product names differ from simulator names, so
-do not point the simulator directly at arbitrary serving profiles or rename
-unmatched hardware measurements.
+Output is `work/sim-results/historical-a100.json`, grouped by policy and
+request ID, with 81 results per policy. Successful arrays contain simulated
+TTFT followed by token intervals in milliseconds; `[-1]` means a scheduling
+deadline failure. With the command above, SeLLM completes 33 requests and
+fails 48; SeLLM+ completes 37 and fails 44. Repeating the same inputs and seed
+reproduces CPU results; a completed simulation does not mean all requests
+meet their SLOs on the single simulated GPU.
 
-### Collect and stage measured profiles
+Profiles contain `avg_prefill_latency` and `avg_decode_latency` in seconds.
+The existing files retain their original measurement conditions. The historical
+serving collection script defaulted to TP=1, float16 and eager execution,
+but the Qwen2.5-7B and Yi-1.5-9B files lack complete per-run provenance;
+the defaults do not confirm every file's collection settings. The timings do
+not establish performance for a different runtime or BF16 configuration. `a100` (80GB) and `a100_40gb`
+remain distinct, as do L20 and H20. Missing model/device pairs fail explicitly.
 
-Prepare a model YAML containing the actual Qwen2.5-7B and Yi-9B checkpoint
-paths and explicit profile aliases. Follow the [profiling guide](profiling.md)
-for the configuration format. The collector runs vLLM on the selected GPU at
-TP=1 and requires the complete GPU runtime; this collection step is separate
-from the CPU simulator check above. Run from the Aegaeon source checkout:
+`--workload` runs a fixed CSV and is mutually exclusive with the existing
+`--num-models`/`--arrival-rate` sweep. Explicit input/output lengths stay paired
+with their CSV row; historical two-column traces sample lengths using the seed.
+Synthetic correctness fixtures remain separate from repository timings.
 
-```bash
-CUDA_VISIBLE_DEVICES=0 AEGAEON_PROFILE_ROOT="$PWD/work/measured-profiles" \
-  python profiles/do_profile.py \
-  --model-config /absolute/path/to/simulation-profile-models.yaml --tp 1
-```
-
-Output is written under
-`work/measured-profiles/<model-profile>/<CUDA-product-name>/i<input_length>b<batch_size>.json`.
-The averages are in seconds. Collect usable training points with independent
-input lengths and batch sizes for both latency estimators. Keep the collection
-YAML and checkpoint, hardware, backend, and sampling metadata with the results.
-
-After confirming that the measurements match the simulator's model/context
-assumptions and **80 GB A100** device, replace the source paths below with
-the actual measured directories and stage both models:
-
-```bash
-QWEN_MEASURED_DIR=/absolute/path/to/measured-qwen/product-name
-YI_MEASURED_DIR=/absolute/path/to/measured-yi/product-name
-mkdir -p work/sim-execution/qwen2.5-7b/a100 work/sim-execution/yi-9b/a100
-cp "$QWEN_MEASURED_DIR"/i*b*.json work/sim-execution/qwen2.5-7b/a100/
-cp "$YI_MEASURED_DIR"/i*b*.json work/sim-execution/yi-9b/a100/
-```
-
-Preserve the original metadata alongside the staged tree. The simulator checks
-that usable training profiles exist, while checkpoint and hardware equivalence
-remain part of experiment preparation. Serving files that contain only raw
-latency arrays need an explicit averaging rule before use as simulator inputs.
-
-### Run the measured simulation
-
-After preparing `work/sim-execution`, run:
-
-```bash
-python -m sim.simulate --num-models 8 --arrival-rate 0.1 --devices a100 \
-  --profile-root work/sim-execution --job-timeout 300 \
-  --output-dir work/sim-results --name measured-a100
-```
-
-The eight-model trace requires both `qwen2.5-7b/a100` and `yi-9b/a100` data;
-the simulator's `a100` is an 80 GB device model. Missing/empty training data
-fails before workers launch. Output is `work/sim-results/measured-a100.json`
-with results grouped by policy and request ID under SeLLM and SeLLM+. Each
-successful request's array contains simulated TTFT followed by consecutive
-token intervals, all in milliseconds; `[-1]` marks a failed request. Inspect
-those arrays as well as process status. Report simulation separately from GPU
-measurements and record profile provenance, model/device assumptions, and
-policies. No measured-performance simulation is self-contained until suitable
-profiles are supplied.
+The result is an execution-profile-driven simulation. Linear-fit error,
+approximate weight/runtime-buffer modeling and assumed swapping bandwidth
+limit its accuracy; reproducibility alone does not validate GPU capacity or
+SLO predictions. For other workloads, follow [profiling](profiling.md), retain
+provenance and validate model/device equivalence. The optional
+`tools/collect_sim_profiles.py` writes newly collected Qwen/A100 40GB profiles
+under `work/collected-sim-profiles`; GPU collection is not required for this
+example. Missing/empty profiles and failed or timed-out workers cause a
+nonzero exit with subprocess cleanup.

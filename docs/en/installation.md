@@ -2,13 +2,38 @@
 
 ## Prerequisites
 
-These steps target Linux x86_64, an NVIDIA GPU, and Python 3.10. The prebuilt wheels require glibc 2.28 or newer; the selected CUDA Toolkit also has Linux distribution requirements, listed below for cu130. Obtain this repository, install and initialize Conda, then run the commands from the repository root.
+These steps target Linux x86_64, an NVIDIA GPU, and standard CPython 3.10 or newer within the backend support range below. The prebuilt wheels require glibc 2.28 or newer; the selected CUDA Toolkit also has Linux distribution requirements, listed below for cu130. Obtain this repository, install and initialize Conda, then run the commands from the repository root.
 
 The installer defaults to `--cuda auto`. Before installing packages, it checks the driver and GPUs, chooses CUDA 13.0 when the cu130 prerequisites below pass, and otherwise falls back to cu129 / CUDA 12.9. It prepares the matching toolchain for the selected route; no preinstalled CUDA Toolkit or manual Toolkit selection is required. PyTorch 2.11.0 is required by vLLM 0.26.0.
 
 The cu129 combination of PyTorch `2.11.0+cu129`, vLLM `0.26.0+cu129`, and CUDA 12.9 has completed fresh-install and actual serving-request tests. cu130 has not completed project end-to-end testing.
 
 Fresh installation and actual serving requests were validated on an A100 PCIe 40GB with NVIDIA driver `535.247.01`, in single-node Simple mode with TP=1, PP=1, and `cuda_graph.mode: off`.
+
+### Python version support
+
+The minimum Python version is 3.10. The pinned GPU backend supports standard
+GIL-enabled **CPython 3.10–3.14**; vLLM 0.26 declares `>=3.10,<3.15`.
+The installer and PEP 517 source backend now select `cp310`, `cp311`, `cp312`,
+`cp313`, or `cp314` Torch-family wheels from the active interpreter. CUDA route
+selection still prefers CUDA 13 and falls back to cu129 using driver/GPU checks.
+
+Choose any supported minor version when creating the environment. The example
+Conda range below lets the solver choose a compatible version; `python=3.12`
+is also valid. Python 3.15+, PyPy, and free-threaded CPython are outside the
+current pinned GPU wheel combination and fail early with an explicit message.
+
+The Rust loader uses the CPython stable ABI starting at 3.10 (`cp310-abi3`),
+so its native module works across these minor versions. `aegaeon.ops` and
+Foundry remain interpreter-specific extensions: rebuild them with the selected
+Python and matching Torch/CUDA. Keep graph archives in their matching runtime.
+
+Installation/metadata, CPU simulator, installer checks, and Rust ABI tests
+cover 3.10–3.14. An isolated Python 3.14/cu129 check on A100 also built and
+imported `aegaeon.ops`, executed a CUDA tensor operation, and verified KV
+block swap-in/out. It reused the existing NVIDIA runtime and toolchain;
+it was not a full fresh serving install. Full GPU serving/Foundry acceptance
+remains the reported Python 3.10 environment, rather than every minor version.
 
 ### Installer recipe and validation scope
 
@@ -17,7 +42,7 @@ The table separates the versions selected by the installer from the reported ser
 | Component | cu129 recipe | cu130 recipe | Who prepares it / validation scope |
 |---|---|---|---|
 | Platform | Linux x86_64, glibc >=2.28; satisfy the Toolkit's distribution requirements | Same base checks; CUDA 13.0.2 distribution requirements also apply | User supplies the OS. The script checks OS, architecture, and glibc, not distribution support. |
-| Conda and Python | Activated Conda environment, Python 3.10 | Same | User installs/initializes Conda and creates the environment before running the script. |
+| Conda and Python | Activated Conda environment, CPython 3.10–3.14 | Same | User installs/initializes Conda and creates the environment before running the script. |
 | NVIDIA driver | Script's initial filter: branch >=525; serving tested on `535.247.01` | Script requires >=`580.95.05` | User or administrator installs the driver. The branch-only cu129 filter is not a guarantee for every CUDA feature. |
 | GPU and serving coverage | A100 PCIe 40GB; single-node Simple, TP=1, PP=1, graphs off | Every detected GPU must have compute capability >=7.5; serving untested | User supplies GPUs. Passing the cu130 driver/GPU selection check does not establish serving support. |
 | CUDA Toolkit | Conda `cuda-toolkit=12.9` | Conda `cuda-toolkit=13.0.2` | Main installer installs it and sets `CUDA_HOME`. |
@@ -43,7 +68,7 @@ df -h /dev/shm
 Run the default automatic selection in a new environment:
 
 ```bash
-conda create --solver classic -n aegaeon python=3.10 -y
+conda create --solver classic -n aegaeon 'python>=3.10,<3.15' -y
 conda activate aegaeon
 bash scripts/install-quickstart.sh
 ```
@@ -62,7 +87,74 @@ A successful dry-run checks the current environment and route selection only. It
 
 The installer sets `CUDA_HOME`, installs vLLM and its required PyTorch dependency, repository dependencies and the matching CuPy package, and builds `aegaeon.ops` and `quick_model_loader` with CUDA/C++ and Rust/Cargo. A local CUDA Toolkit is still required to compile the extensions and must match the PyTorch CUDA build. The installer checks versions, runs a real CUDA operation, imports the extensions and core components, and runs `pip check`. For the cu129 route, after all checks pass it prints `Aegaeon quickstart installation verified`.
 
-**Do not use `pip install -r requirements.txt` as a standalone backend installation.** The file includes `torch==2.11.0` and `vllm==0.26.0` as well as general dependencies, but does not select CUDA wheel variants or install a Toolkit. In a fresh environment, public package resolution can select CUDA 13 packages even on a host whose driver cannot execute them; it does not reproduce the tested cu129 route. The installer first selects the complete backend wheel combination, then installs this file. Use the installer in a new environment and preserve that selected combination. Arbitrary PyTorch/vLLM versions are not supported. After changing either version, rebuild the native extensions and run the test suite.
+
+## pip source installation
+
+Run from the root of a complete Aegaeon source checkout. Both commands enter
+the same PEP 517 backend and use the installer's CUDA 13-first policy:
+
+```bash
+python -m pip install --no-cache-dir .
+python -m pip install --no-cache-dir -r requirements.txt
+```
+
+Use either command. `requirements.txt` now references the local project (`.`),
+so it builds and installs Aegaeon instead of only installing a dependency list.
+Run it from the repository root, including when the requirements filename is
+absolute. For common Python dependencies alone, use:
+
+```bash
+python -m pip install -r requirements-common.txt
+```
+
+The source backend checks every detected GPU and driver before requesting
+Torch/vLLM. It prefers cu130 when the same driver/GPU checks pass, otherwise
+selects cu129. Unsupported drivers fail before backend dependency installation.
+The selected Torch also supplies the isolated native build environment; cu129
+pins matching Torch, vLLM, torchaudio, torchvision, torchcodec wheels and CuPy
+12, while cu130 requests exact public versions and CuPy 13. Metadata creation
+does not import Torch or create a CUDA extension. Native compilation validates
+both `CUDA_HOME`/nvcc and `torch.version.cuda` against the selected route.
+
+pip prepares Python build dependencies, but the CUDA Toolkit and C++ compiler
+must already be available and match the selection. The quickstart installer
+prepares that toolchain automatically. Serving also needs the separately built
+Rust `quick_model_loader`; the pip source entry above installs the main project
+and selected backend, while the complete quickstart installs both extensions.
+Use the complete repository for quickstart, including `quick_model_loader/`.
+
+Override the source selection with `AEGAEON_CUDA=cu129` or `cu130`. Explicit
+routes still check driver/GPU compatibility. A matching prepared environment
+can build without isolation:
+
+```bash
+AEGAEON_CUDA=cu129 python -m pip install --no-cache-dir --no-build-isolation .
+```
+
+Use a fresh environment when changing CUDA routes; retain one matching CuPy
+distribution. Before requesting backend packages, the source build rejects an
+existing `cupy` source distribution or a CuPy CUDA distribution for the other
+route. It reads the invoking interpreter environment independently of pip
+build isolation. This check covers the default interpreter installation;
+separate `--target` or `--prefix` directories are not visible to the backend. A Python/resource-only package can be built without GPU probing:
+
+```bash
+AEGAEON_CUDA=core AEGAEON_BUILD_CUDA=0 python -m pip wheel --no-deps .
+```
+
+This core package has no CUDA runtime dependencies or `aegaeon.ops`; GPU serving
+requires the complete runtime. `AEGAEON_BUILD_CUDA=0` alone omits the extension
+but retains the selected GPU backend dependencies.
+
+Built wheels have a fixed backend recorded in their `Requires-Dist` dependency
+metadata. The package version stays `0.1.0` for both source archives and wheels
+so pip can resolve source packages consistently. Installing a wheel does not
+rerun source selection; choose an artifact matching the target runtime. pip's
+wheel compatibility rules are independent of GPU hardware. Use `--no-cache-dir` for source archive or immutable Git
+installs to prevent reuse of a wheel built earlier for another CUDA route.
+Source archives contain the build selector but not the separate quick-loader
+subproject. Selection fallback happens before installation; a download or
+compile failure terminates the selected route.
 
 ## CUDA route selection
 
@@ -87,7 +179,7 @@ CUDA 13.0.2 also requires an [officially supported Linux distribution](https://d
 Select cu130 explicitly in a separate new environment to retain a working cu129 installation:
 
 ```bash
-conda create --solver classic -n aegaeon-cu130 python=3.10 -y
+conda create --solver classic -n aegaeon-cu130 'python>=3.10,<3.15' -y
 conda activate aegaeon-cu130
 bash scripts/install-quickstart.sh --cuda cu130
 ```
@@ -96,16 +188,58 @@ The script checks dependency versions, CUDA execution, and core imports. Passing
 
 ## Runtime checks and wheel installations
 
-Check imports and pinned runtime versions before starting the service:
+Check the local runtime, then check the configuration that you will use to start the service:
 
 ```bash
 aegaeon doctor
-CUDA_VISIBLE_DEVICES=0 aegaeon doctor --check-cuda
+CUDA_VISIBLE_DEVICES=0 aegaeon doctor --config /srv/aegaeon/config.yaml --check-cuda
 ```
 
-`doctor` imports PyTorch, vLLM, Ray, PyYAML, CuPy, FastAPI, Uvicorn, and the Rust loader; it checks the public PyTorch/vLLM versions without running its GPU tensor checks. `--check-cuda` also runs small PyTorch and CuPy operations and imports `vllm._C_stable_libtorch`; any failed check returns a nonzero status. Run the CUDA check on an allocated GPU on each worker node. `start` runs the import checks before importing the API.
+| Check | What it verifies |
+|---|---|
+| Runtime imports | PyTorch, vLLM, Ray, PyYAML, CuPy, FastAPI, Uvicorn, `aegaeon.ops`, and the Rust loader; pinned PyTorch/vLLM versions |
+| Local toolchain | `CUDA_HOME`, `nvcc`, the Toolkit version against `torch.version.cuda`, and a C++ compiler; Rust/Cargo availability is reported as a build prerequisite |
+| Host memory | Available shared-memory and host memory, inspectable cgroup v2 limits, a temporary file write/mmap probe, and soft/hard memlock limits |
+| With `--config` | YAML topology and TP=1 constraints, startup model selection, readable local model configuration/tokenizer/safetensors files and indexed shards, declared model/device profile candidates and usable DecodeEstimator training samples (`decode_latencies`, at least three positive finite values in seconds) |
+| Configured memory budget | CPU KV slab allocations plus the explicit or estimated model cache, compared with the local shared-memory and available host-memory capacity; diagnostics identify estimates and unresolved budgets |
+| With `--check-cuda` | Small PyTorch and CuPy CUDA operations, the vLLM native-extension import, and one-page shared-memory CUDA registration/unregistration on an allocated GPU |
 
-These diagnostics are not a full deployment preflight. They do not inspect `nvcc`/`CUDA_HOME`, compiler or Rust/Cargo executables, `aegaeon.ops`, the selected CUDA wheel variants in the plain `doctor` command, Ray cluster resources, shared-memory capacity, memlock limits, model paths, or profile paths. The installer checks its build toolchain and extension imports separately. Before serving, also complete the [QuickStart](quickstart.md) model/profile and memory checks and the [host-registration and memlock checks](troubleshooting.md#host-registration-and-memlock). A passing `doctor` does not prove that a particular model configuration can start or serve requests.
+`--models` and `--tensor-parallel-size` use the same overrides as `start`.
+The configuration check reads local files without downloading models or starting Ray.
+Plain `doctor` omits GPU tensor operations; pass `--check-cuda` on an allocated GPU
+on every worker node. `start` runs static configuration and local host checks
+before importing the API, without querying CUDA in the driver process. Declared
+devices are profile candidates: missing or invalid candidate data produces `WARN`,
+and a static `OK` still leaves the actual worker GPU unverified.
+`doctor --config PATH --check-cuda` resolves the allocated GPUs and treats
+missing or invalid profiles for the GPUs required by the engines as `FAIL`.
+The shared-memory checks use `AEGAEON_SHM_DIR` when set, otherwise `/dev/shm`;
+set this to the worker's `shm_dir` when checking a custom node directory.
+The small temporary mappings are removed after the probe. Existing fixed-name
+cache files are checked for file type and access permissions; their presence
+produces a warning, and their contents and sizes are preserved.
+Capacity checks also estimate the allocated bytes of reusable cache files on
+the same mount. When free capacity meets the budget only after potential cache
+reuse, the result is `WARN` pending confirmation of reuse; if even this best-case
+reuse leaves insufficient capacity, the result is `FAIL`. Unreadable allocation
+metadata leaves reuse unverified and produces `WARN`. When less than one page
+is free and reuse remains unresolved, mmap/CUDA-registration probes are skipped
+with `WARN` rather than claiming success.
+
+Each result is `OK`, `WARN`, or `FAIL`. A failure exits with status 1 and blocks
+`start`, including definite model-file and memory-capacity failures. Warnings
+explain limits such as an unverified static profile candidate, a memlock allowance below the budget, a
+finite allowance with an unknown budget, missing Rust/Cargo after the extensions
+are installed, or an unresolved memory budget;
+they allow normal startup. `aegaeon doctor --strict` also exits with status 1 for
+warnings. Supplying `--config` enables the model, profile, and memory-budget checks.
+
+This is a preflight of the node running the command. Remote Ray worker state,
+full-size pinned-memory allocations, and real model execution are separate
+acceptance steps. A passing result establishes the checks listed above; complete
+the [QuickStart](quickstart.md) request test and review the
+[host-registration and memlock guidance](troubleshooting.md#host-registration-and-memlock)
+for the configured memory sizes.
 
 Wheels include the loader Python subpackage and built-in web pages. Supply measured profiles on every worker through `AEGAEON_PROFILE_ROOT`, using `<model-profile>/<device-profile>/i<input>b<batch>.json` under that directory; batch profiling also uses this root.
 

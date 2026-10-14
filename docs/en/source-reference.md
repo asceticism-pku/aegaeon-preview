@@ -15,6 +15,8 @@ In `aegaeon/llm.py`, `_default_cuda_compat_paths` probes CUDA compatibility-libr
 | `aegaeon/cache_transfer.py` | `logical_blocks_for_tokens`, `sliding_window_resident_block_bound`, `num_skipped_sliding_window_blocks`, `kernel_block_extent_for_attention_page`, `valid_kernel_blocks_for_attention_page`, `prefix_bytes_for_kernel_blocks`, `byte_extent_for_kernel_blocks` |
 | `aegaeon/cli.py` | `main`, `_check_partial_result`, `_cmd_deploy`, `_cmd_undeploy` |
 | `aegaeon/preflight.py` | `CheckResult`, `check_runtime`, `ensure_runtime` |
+| `aegaeon/preflight_config.py` | `_integer`, `_json`, `_relative_key`, `_model_files`, `_profile_directory`, `_check_profile`, `check_configuration` |
+| `aegaeon/preflight_host.py` | `_warning`, `_command_version`, `_check_toolchain`, `_probe_shared_mapping`, `_check_shared_memory`, `_check_memlock`, `_check_cache_files`, `_reusable_cache_bytes`, `_local_memory_available`, `_check_host_memory`, `_probe_cuda_registration`, `_check_cuda_registration`, `check_host` |
 | `aegaeon/resources.py` | `web_directory`, `profile_root` |
 | `aegaeon/config.py` | `_MPTAttnConfig`, `_normalize_mpt_config`, `_normalize_telechat3_config`, `NodeConfig`, `ParallelConfig`, `ModelConfig`, `QuickLoaderConfig`, `ServerConfig`, `make_vllm_cache_config`, `get_server_config`, `set_server_config`, `ModelConfigEntry`, `ModelConfigRegistry`, `get_model_config`, `get_vllm_config`, `register_model_config`, `unregister_model_config` |
 | `aegaeon/cuda_graph.py` | `GraphKey`, `select_decode_graph_key` |

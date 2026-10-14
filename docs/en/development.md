@@ -40,7 +40,7 @@ python -m pytest tests/test_cuda_graph_catalog_config.py
 
 This module checks archive catalog rules and requires pytest with the correct project import path. Runtime changes need meaningful failure and boundary checks rather than assertions mirroring implementation details.
 
-The installer regression tests create their temporary environment with the interpreter running pytest. Use the supported Python 3.10 environment; under Python 3.12, the installer's intended Python-version guard runs before the scenarios being tested.
+The installer regression tests create their temporary environment with the interpreter running pytest. Use any supported standard CPython 3.10–3.14 environment. The selector generates matching wheel ABIs, and the tests use the current interpreter without installing GPU packages.
 
 ```bash
 python --version
@@ -48,9 +48,15 @@ python -m pytest tests/test_docs_checker.py tests/test_install_quickstart.py -q
 python -m pytest tests/test_foundry_runtime_active_model.py -q
 ```
 
-The first command must report Python 3.10.x. These checks validate documentation, installer preflight, and mocked Foundry archive handling; they do not build native extensions or validate GPU serving. Native builds and imports require the [installation toolchain](installation.md).
+The first command should report a supported Python version (3.10–3.14). These checks validate documentation, installer preflight, and mocked Foundry archive handling; they do not build native extensions or validate GPU serving. Native builds and imports require the [installation toolchain](installation.md).
 
-`tests/test_init.py` and the `tests/test_serve*.py` files are historical Ray/GPU integration examples, not a GPU-free default test set. In particular, `test_init.py` still constructs `LLMService` without initializing the global server configuration. Adapt that example to the current server configuration and model/device registries, with real checkpoint paths and sufficient Ray/cache resources, before using it for integration validation. Passing the selected logic tests does not establish that every test in `tests/` passes.
+`tests/test_init.py` runs the real `LLMService` constructor with an explicitly initialized server configuration and isolated Ray/Controller boundaries. It checks propagation of each node's configuration, ready replica placement and routing, initialization failure propagation, and the error contract for a missing server configuration. The test environment must support importing the full serving dependencies; the tests do not start Ray, reserve GPUs, load checkpoints, or allocate model caches.
+
+```bash
+python -m pytest tests/test_init.py -q
+```
+
+The `tests/test_serve*.py` files remain historical Ray/GPU integration examples. Adapt them to the current server configuration and model/device registries, with real checkpoint paths and sufficient Ray/cache resources, before using them for integration validation. Passing these isolated constructor and logic tests does not establish end-to-end GPU serving or that every test in `tests/` passes.
 
 ## Documentation maintenance
 

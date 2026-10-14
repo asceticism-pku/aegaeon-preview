@@ -10,7 +10,7 @@ import yaml
 root=Path(sys.argv[1] if len(sys.argv)>1 else str(Path(__file__).resolve().parents[1]))
 docs=[root/'docs'/language for language in ('zh','en')]
 errors=[]
-counts={'markdown':0,'technical_notes':0,'links':0,'yaml_files':0,'yaml_blocks':0,'json_blocks':0,'python_blocks':0,'cli_examples':0,'scope_checks':0,'shell_blocks':0,'shell_inputs':0}
+counts={'markdown':0,'technical_notes':0,'links':0,'yaml_files':0,'yaml_blocks':0,'json_blocks':0,'python_blocks':0,'cli_examples':0,'scope_checks':0,'shell_blocks':0,'shell_inputs':0,'json_files':0}
 # These are file roles, not shell evaluation. In particular, model IDs and
 # output arguments are not evidence that an input asset belongs in the checkout.
 _SHELL_INPUT_OPTIONS = {'--config', '--config-file', '--model-config',
@@ -274,7 +274,10 @@ for path in (path for doc in docs for path in (doc/'examples').glob('*.yaml')):
     counts['yaml_files']+=1
     try: check_yaml(yaml.safe_load(path.read_text(encoding='utf-8')),path.name)
     except Exception as exc: errors.append(f'{path.name}: {exc}')
-for path in (path for doc in docs for path in (doc/'examples').glob('*.json')): json.loads(path.read_text(encoding='utf-8'))
+for path in (path for doc in docs for path in (doc/'examples').glob('*.json')):
+    counts['json_files']+=1
+    try: json.loads(path.read_text(encoding='utf-8'))
+    except Exception as exc: errors.append(f'{path.relative_to(root)}: JSON invalid: {exc}')
 
 # Product boundaries are deliberate even where parsers or reserved code paths
 # accept broader shapes. Keep every user-facing entry point on the same scope.
@@ -408,12 +411,12 @@ for path,label,start,end in (
         )
 
 # Help commands are independent of GPU imports because they terminate argparse first.
-for cmd in ([],['start'],['deploy'],['undeploy']):
+for cmd in ([],['doctor'],['start'],['deploy'],['undeploy']):
     result=subprocess.run([sys.executable,str(root/'aegaeon/cli.py'),*cmd,'--help'],capture_output=True,text=True,encoding='utf-8',errors='replace')
     if result.returncode: errors.append(f'CLI help {cmd} failed: {result.stderr}')
     counts['cli_examples']+=1
 
-cli_sections=(('start','deploy'),('deploy','undeploy'),('undeploy','Queries'))
+cli_sections=(('doctor','start'),('start','deploy'),('deploy','undeploy'),('undeploy','Queries'))
 for command,next_heading in cli_sections:
     result=subprocess.run(
         [sys.executable,str(root/'aegaeon/cli.py'),command,'--help'],

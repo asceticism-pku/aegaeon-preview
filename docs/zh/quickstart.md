@@ -1,44 +1,40 @@
 # 快速开始：完成第一条请求
 
-本示例使用一台 Linux 主机、一张空闲的 A100 40 GB GPU、Simple 模式和 TP=1，关闭 CUDA Graph。先完成[安装](installation.md)，然后在仓库根目录执行以下命令。
-
-本文从零安装与实际服务请求已在 cu129 / CUDA 12.9 路线上测试。默认安装器先按驱动和 GPU 预检选择 CUDA 13.0，条件未通过时在安装包之前回退 cu129；已测试的驱动 `535.247.01` 环境会选择 cu129。[CUDA 13.0 路线](installation.md#cuda-130-路线未测试)尚未完成项目端到端测试；使用 `--cuda cu129` 可强制选择已测试路线。
-
-仓库已包含示例配置和匹配的 profile。其他模型或 GPU 需要调整[配置](configuration.md)并采集匹配的 [profile](profiling.md)。
+本示例用一张 A100 PCIe 40GB GPU，以 Simple 模式运行 Qwen3-4B（TP=1，CUDA Graph 关闭）。先按[安装指南](installation.md)使用 `--cuda cu129` 完成已测试路线的安装，激活已安装的 Conda 环境，在源码仓库根目录执行命令。
 
 ## 1. 准备模型与配置
 
-直接使用仓库现有的 [`docs/zh/examples/simple.yaml`](examples/simple.yaml)，将其中的模型 `path` 设置为完整本地模型目录。
-
-下载完整的 `Qwen/Qwen3-4B` checkpoint。需要代理时，先按[模型下载说明](models.md#下载与代理排障)配置网络。已有完整本地模型时，将 `MODEL_DIR` 改为其绝对路径，并跳过下载命令。
+下载完整 checkpoint；已有本地模型时，将 `MODEL_DIR` 设为其绝对路径并跳过 `hf download`：
 
 ```bash
 MODEL_DIR="$HOME/aegaeon-models/Qwen3-4B"
 hf download Qwen/Qwen3-4B --local-dir "$MODEL_DIR"
-sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" docs/zh/examples/simple.yaml
+cp docs/zh/examples/simple.yaml aegaeon.yaml
+sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" aegaeon.yaml
 ```
+
+示例在主机内存和 `/dev/shm` 中预留 20 GiB 模型缓存、8 GiB CPU KV 缓存，还需为 Ray 等进程留出余量。仓库已附匹配的 profile；更换模型或 GPU 时，调整[配置](configuration.md)并采集匹配的 [profile](profiling.md)。下载问题见[模型准备](models.md#下载与代理排障)。
 
 ## 2. 启动服务
 
-设置好 `docs/zh/examples/simple.yaml` 中的模型路径后，从仓库根目录启动。选择一张空闲 GPU；下方以 GPU 0 为例。`local` 自动创建带 `node_0` 资源的本地 Ray runtime。
+选择一张空闲 GPU；`--ray-address local` 自动启动 Ray：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 aegaeon start --config docs/zh/examples/simple.yaml \
+export CUDA_HOME="$CONDA_PREFIX"
+CUDA_VISIBLE_DEVICES=0 aegaeon start --config aegaeon.yaml \
   --host 127.0.0.1 --port 8000 --ray-address local
 ```
 
-启动会初始化 CPU 缓存和 actors。等待终端显示 `Application startup complete`；同一组节点只运行一个使用默认 actor / 缓存命名的 API 实例。已有 Ray 集群或多节点部署见[部署指南](deployment.md)。
+等待 `Application startup complete`。同一组节点运行一个使用默认 actor / 缓存命名的 API 实例；其他部署方式见[部署指南](deployment.md)。
 
 ## 3. 发送首个 Chat 请求
 
-在另一个终端执行：
+在另一个终端的仓库根目录执行：
 
 ```bash
 curl -sS http://127.0.0.1:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"Qwen/Qwen3-4B","messages":[{"role":"user","content":"用一句话解释 KV Cache。"}],"temperature":0,"max_tokens":64}'
+  --data-binary @docs/zh/examples/chat-request.json
 ```
 
-成功响应包含 `choices[0].message.content`、`finish_reason` 和 `usage`。首条请求还包含 GPU 权重加载时间。
-
-流式输出与运行状态查询见 [API 参考](api.md)；启动或请求失败时见[故障排查](troubleshooting.md)。
+成功响应包含 `choices[0].message.content` 和 token `usage`。首次请求还会将权重加载到 GPU。流式输出见 [API 参考](api.md)，启动或请求问题见[故障排查](troubleshooting.md)。
