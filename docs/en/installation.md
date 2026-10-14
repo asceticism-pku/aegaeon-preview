@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-These steps target Linux x86_64, an NVIDIA GPU, and standard CPython 3.10 or newer within the backend support range below. The prebuilt wheels require glibc 2.28 or newer; the selected CUDA Toolkit also has Linux distribution requirements, listed below for cu130. Obtain this repository, install and initialize Conda, then run the commands from the repository root.
+These steps target Linux x86_64, an NVIDIA GPU, and standard CPython 3.10. The prebuilt wheels require glibc 2.28 or newer; the selected CUDA Toolkit also has Linux distribution requirements, listed below for cu130. Obtain this repository, install and initialize Conda, then run the commands from the repository root.
 
 The installer defaults to `--cuda auto`. Before installing packages, it checks the driver and GPUs, chooses CUDA 13.0 when the cu130 prerequisites below pass, and otherwise falls back to cu129 / CUDA 12.9. It prepares the matching toolchain for the selected route; no preinstalled CUDA Toolkit or manual Toolkit selection is required. PyTorch 2.11.0 is required by vLLM 0.26.0.
 
@@ -12,28 +12,17 @@ Fresh installation and actual serving requests were validated on an A100 PCIe 40
 
 ### Python version support
 
-The minimum Python version is 3.10. The pinned GPU backend supports standard
-GIL-enabled **CPython 3.10–3.14**; vLLM 0.26 declares `>=3.10,<3.15`.
-The installer and PEP 517 source backend now select `cp310`, `cp311`, `cp312`,
-`cp313`, or `cp314` Torch-family wheels from the active interpreter. CUDA route
-selection still prefers CUDA 13 and falls back to cu129 using driver/GPU checks.
+Aegaeon installation and runtime support is restricted to standard,
+GIL-enabled **CPython 3.10**. Create environments with `python=3.10`;
+other Python minor versions, PyPy, and free-threaded CPython are unsupported.
+The installer and PEP 517 source backend use the CPython 3.10 (`cp310`)
+Torch-family wheels. CUDA route selection still prefers CUDA 13 and falls
+back to cu129 using driver/GPU checks.
 
-Choose any supported minor version when creating the environment. The example
-Conda range below lets the solver choose a compatible version; `python=3.12`
-is also valid. Python 3.15+, PyPy, and free-threaded CPython are outside the
-current pinned GPU wheel combination and fail early with an explicit message.
-
-The Rust loader uses the CPython stable ABI starting at 3.10 (`cp310-abi3`),
-so its native module works across these minor versions. `aegaeon.ops` and
-Foundry remain interpreter-specific extensions: rebuild them with the selected
-Python and matching Torch/CUDA. Keep graph archives in their matching runtime.
-
-Installation/metadata, CPU simulator, installer checks, and Rust ABI tests
-cover 3.10–3.14. An isolated Python 3.14/cu129 check on A100 also built and
-imported `aegaeon.ops`, executed a CUDA tensor operation, and verified KV
-block swap-in/out. It reused the existing NVIDIA runtime and toolchain;
-it was not a full fresh serving install. Full GPU serving/Foundry acceptance
-remains the reported Python 3.10 environment, rather than every minor version.
+Build native extensions with CPython 3.10 and matching Torch/CUDA, and keep
+Foundry graph archives in their matching runtime. Earlier revisions were
+tested on Python 3.11–3.14, including an isolated Python 3.14/cu129 native
+check; those historical experiments do not extend the current support policy.
 
 ### Installer recipe and validation scope
 
@@ -42,7 +31,7 @@ The table separates the versions selected by the installer from the reported ser
 | Component | cu129 recipe | cu130 recipe | Who prepares it / validation scope |
 |---|---|---|---|
 | Platform | Linux x86_64, glibc >=2.28; satisfy the Toolkit's distribution requirements | Same base checks; CUDA 13.0.2 distribution requirements also apply | User supplies the OS. The script checks OS, architecture, and glibc, not distribution support. |
-| Conda and Python | Activated Conda environment, CPython 3.10–3.14 | Same | User installs/initializes Conda and creates the environment before running the script. |
+| Conda and Python | Activated Conda environment, CPython 3.10 | Same | User installs/initializes Conda and creates the environment before running the script. |
 | NVIDIA driver | Script's initial filter: branch >=525; serving tested on `535.247.01` | Script requires >=`580.95.05` | User or administrator installs the driver. The branch-only cu129 filter is not a guarantee for every CUDA feature. |
 | GPU and serving coverage | A100 PCIe 40GB; single-node Simple, TP=1, PP=1, graphs off | Every detected GPU must have compute capability >=7.5; serving untested | User supplies GPUs. Passing the cu130 driver/GPU selection check does not establish serving support. |
 | CUDA Toolkit | Conda `cuda-toolkit=12.9` | Conda `cuda-toolkit=13.0.2` | Main installer installs it and sets `CUDA_HOME`. |
@@ -68,7 +57,7 @@ df -h /dev/shm
 Run the default automatic selection in a new environment:
 
 ```bash
-conda create --solver classic -n aegaeon 'python>=3.10,<3.15' -y
+conda create --solver classic -n aegaeon python=3.10 -y
 conda activate aegaeon
 bash scripts/install-quickstart.sh
 ```
@@ -179,7 +168,7 @@ CUDA 13.0.2 also requires an [officially supported Linux distribution](https://d
 Select cu130 explicitly in a separate new environment to retain a working cu129 installation:
 
 ```bash
-conda create --solver classic -n aegaeon-cu130 'python>=3.10,<3.15' -y
+conda create --solver classic -n aegaeon-cu130 python=3.10 -y
 conda activate aegaeon-cu130
 bash scripts/install-quickstart.sh --cuda cu130
 ```

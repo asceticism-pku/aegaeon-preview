@@ -40,7 +40,7 @@ python -m pytest tests/test_cuda_graph_catalog_config.py
 
 该测试模块检查图存档目录规则，运行环境应安装 pytest 并包含正确的项目导入路径。新增运行逻辑应覆盖真实失败分支和边界条件。
 
-安装器回归测试用运行 pytest 的解释器创建临时环境，可在受支持的标准 CPython 3.10–3.14 环境中执行。选择器按解释器生成匹配的 wheel ABI，测试使用当前解释器而不安装 GPU 包。
+安装器回归测试用运行 pytest 的解释器创建临时环境，应在受支持的标准 CPython 3.10 环境中执行。选择器使用 CPython 3.10 的 wheel ABI，测试使用当前解释器而不安装 GPU 包。
 
 ```bash
 python --version
@@ -48,7 +48,7 @@ python -m pytest tests/test_docs_checker.py tests/test_install_quickstart.py -q
 python -m pytest tests/test_foundry_runtime_active_model.py -q
 ```
 
-第一条命令应显示受支持的 Python 版本（3.10–3.14）。上述检查覆盖文档、安装器预检查和使用 mock 的 Foundry 存档处理，不会构建原生扩展，也不验证 GPU 服务。原生构建与导入仍需满足[安装工具链](installation.md)要求。
+第一条命令应显示 Python 3.10。上述检查覆盖文档、安装器预检查和使用 mock 的 Foundry 存档处理，不会构建原生扩展，也不验证 GPU 服务。原生构建与导入仍需满足[安装工具链](installation.md)要求。
 
 `tests/test_init.py` 显式初始化服务配置，在隔离 Ray/Controller 边界的条件下运行真实的 `LLMService` 构造函数，检查各节点配置传播、就绪副本放置与路由、初始化失败传播，以及缺少服务配置时的错误契约。运行环境需支持导入完整服务依赖；测试不启动 Ray、不申请 GPU、不加载 checkpoint，也不分配模型缓存。
 

@@ -1,6 +1,6 @@
 # 快速开始：完成第一条请求
 
-本示例用一张 A100 PCIe 40GB GPU，以 Simple 模式运行 Qwen3-4B（TP=1，CUDA Graph 关闭）。先按[安装指南](installation.md)使用 `--cuda cu129` 完成已测试路线的安装，激活已安装的 Conda 环境，在源码仓库根目录执行命令。
+本示例用一张 A100 PCIe 40GB GPU，以 Simple 模式运行 Qwen3-4B（TP=1，CUDA Graph 关闭）。先按[安装指南](installation.md)使用 `--cuda cu129` 完成已测试路线的安装，激活已安装的 CPython 3.10 Conda 环境，在源码仓库根目录执行命令。
 
 ## 1. 准备模型与配置
 

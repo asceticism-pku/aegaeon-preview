@@ -102,7 +102,7 @@ Graph 工具有 benchmark_cuda_graph_latency.py、benchmark_foundry_three_model_
 
 ## 模拟器
 
-模拟器默认直接使用仓库已有的 `profiles/`。在干净源码检出、Python 3.10–3.14
+模拟器默认直接使用仓库已有的 `profiles/`。在干净源码检出、标准 CPython 3.10
 环境中执行：
 
 ```bash

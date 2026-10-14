@@ -2,7 +2,7 @@
 
 ## 前提
 
-以下步骤面向 Linux x86_64、NVIDIA GPU 与下方后端范围内的标准 CPython 3.10 或更新版本。预编译 wheel 要求 glibc 2.28 或更新版本；所选 CUDA Toolkit 的发行版支持要求还需分别满足，cu130 见下节。请先获取本仓库、安装并初始化 Conda，然后在仓库根目录执行命令。
+以下步骤面向 Linux x86_64、NVIDIA GPU 与标准 CPython 3.10。预编译 wheel 要求 glibc 2.28 或更新版本；所选 CUDA Toolkit 的发行版支持要求还需分别满足，cu130 见下节。请先获取本仓库、安装并初始化 Conda，然后在仓库根目录执行命令。
 
 安装脚本默认使用 `--cuda auto`：安装包之前先检查驱动和 GPU，满足下节的 cu130 预检条件时选择 CUDA 13.0，否则回退 cu129 / CUDA 12.9。脚本按所选路线准备匹配的工具链，无需预先安装或手动选择 CUDA Toolkit。PyTorch 2.11.0 是 vLLM 0.26.0 的依赖要求。
 
@@ -12,25 +12,15 @@ cu129 的 PyTorch `2.11.0+cu129`、vLLM `0.26.0+cu129` 和 CUDA 12.9 组合已�
 
 ### Python 版本支持
 
-Python 最低版本为 3.10。固定的 GPU 后端组合支持启用 GIL 的标准
-**CPython 3.10–3.14**；vLLM 0.26 的依赖声明为 `>=3.10,<3.15`。
-安装器和 PEP 517 源码后端现在按当前解释器选择 `cp310`、`cp311`、`cp312`、
-`cp313` 或 `cp314` 的 Torch 系列 wheel。CUDA 路线仍按驱动／GPU 检查优先
-CUDA 13，并在条件不满足时选择 cu129。
+Aegaeon 的安装和运行仅支持启用 GIL 的标准 **CPython 3.10**。
+创建环境时使用 `python=3.10`；其他 Python minor 版本、PyPy 和
+free-threaded CPython 不在支持范围内。安装器与 PEP 517 源码后端使用
+CPython 3.10（`cp310`）的 Torch 系列 wheel。CUDA 路线仍按驱动／GPU
+检查优先 CUDA 13，并在条件不满足时选择 cu129。
 
-创建环境时任选受支持的 minor 版本。下方 Conda 范围表达式会让 solver 选择兼容版本，
-也可显式使用 `python=3.12`。当前 GPU wheel 组合范围止于 3.14；
-Python 3.15+、PyPy、free-threaded CPython 会在安装前收到明确的兼容性错误。
-
-Rust loader 使用以 3.10 为最低版本的 CPython stable ABI（`cp310-abi3`），
-模块可跨上述 minor 版本使用。`aegaeon.ops` 和 Foundry 的扩展仍与解释器有关，
-应使用所选 Python 和匹配的 Torch/CUDA 重新编译，图存档保留其匹配运行环境。
-
-安装／元数据、CPU simulator、安装器检查和 Rust ABI 测试覆盖 3.10–3.14。
-另在 A100 上的独立 Python 3.14/cu129 环境中完成 `aegaeon.ops` 编译与导入、
-真实 CUDA tensor 运算以及 KV 块换入／换出验证；该检查复用了已有 NVIDIA
-runtime 和工具链，未进行完整的从零 serving 安装。GPU serving／Foundry
-完整验收记录仍来自原 Python 3.10 环境，尚未覆盖每个 minor 版本。
+原生扩展应使用 CPython 3.10 和匹配的 Torch/CUDA 构建，Foundry 图存档
+保留其匹配运行环境。此前版本曾在 Python 3.11–3.14 上进行实验测试，
+包括独立的 Python 3.14/cu129 原生检查；这些历史实验不扩展当前支持范围。
 
 ### 安装版本与验收范围
 
@@ -39,7 +29,7 @@ runtime 和工具链，未进行完整的从零 serving 安装。GPU serving／F
 | 组件 | cu129 安装方案 | cu130 安装方案 | 准备方与验收范围 |
 |---|---|---|---|
 | 平台 | Linux x86_64、glibc >=2.28，并满足 Toolkit 的发行版要求 | 相同基础检查，另需满足 CUDA 13.0.2 的发行版要求 | 用户准备操作系统。脚本检查系统、架构和 glibc，不检查发行版支持表。 |
-| Conda 与 Python | 已激活的 Conda 环境、CPython 3.10–3.14 | 相同 | 用户先安装并初始化 Conda，再创建环境。 |
+| Conda 与 Python | 已激活的 Conda 环境、CPython 3.10 | 相同 | 用户先安装并初始化 Conda，再创建环境。 |
 | NVIDIA 驱动 | 脚本初筛：分支 >=525；服务实测版本为 `535.247.01` | 脚本要求 >=`580.95.05` | 用户或管理员准备驱动。cu129 的分支号检查不保证所有 CUDA 功能兼容。 |
 | GPU 与服务验收 | A100 PCIe 40GB；单节点 Simple、TP=1、PP=1、graphs off | 每张检测到的 GPU 计算能力 >=7.5；服务未测试 | 用户准备 GPU。cu130 通过驱动/GPU 路线选择检查，不代表已验证服务支持。 |
 | CUDA Toolkit | Conda `cuda-toolkit=12.9` | Conda `cuda-toolkit=13.0.2` | 主安装脚本安装并设置 `CUDA_HOME`。 |
@@ -65,7 +55,7 @@ df -h /dev/shm
 在新环境中执行默认自动选择：
 
 ```bash
-conda create --solver classic -n aegaeon 'python>=3.10,<3.15' -y
+conda create --solver classic -n aegaeon python=3.10 -y
 conda activate aegaeon
 bash scripts/install-quickstart.sh
 ```
@@ -166,7 +156,7 @@ CUDA 13.0.2 还要求使用其[官方支持的 Linux 发行版](https://docs.nvi
 在独立的新环境中显式选择 cu130，保留已工作的 cu129 环境：
 
 ```bash
-conda create --solver classic -n aegaeon-cu130 'python>=3.10,<3.15' -y
+conda create --solver classic -n aegaeon-cu130 python=3.10 -y
 conda activate aegaeon-cu130
 bash scripts/install-quickstart.sh --cuda cu130
 ```

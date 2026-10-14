@@ -110,7 +110,7 @@ Report GPU/CPU/interconnect, driver, torch/vLLM versions, source, models, mode, 
 ## Simulator
 
 The simulator uses the existing repository `profiles/` directory by default.
-From a clean source checkout in a Python 3.10–3.14 environment:
+From a clean source checkout in a standard CPython 3.10 environment:
 
 ```bash
 python -m pip install -r sim/requirements.txt

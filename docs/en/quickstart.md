@@ -1,6 +1,6 @@
 # Quickstart: Send Your First Request
 
-This example serves Qwen3-4B on one A100 PCIe 40GB GPU in Simple mode (TP=1, CUDA graphs off). Complete [installation](installation.md) using `--cuda cu129` for the tested route, activate the installed Conda environment, and run commands from the source checkout root.
+This example serves Qwen3-4B on one A100 PCIe 40GB GPU in Simple mode (TP=1, CUDA graphs off). Complete [installation](installation.md) using `--cuda cu129` for the tested route, activate the installed CPython 3.10 Conda environment, and run commands from the source checkout root.
 
 ## 1. Prepare the model and configuration
 
