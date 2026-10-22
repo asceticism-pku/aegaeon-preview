@@ -58,31 +58,24 @@ nav:
   - Advanced Features:
     - Decode Work Stealing: work-stealing.md
     - CUDA Graphs and Foundry: cuda-graphs.md
-    - Power and Clocks: energy.md
   - Operations and Examples:
     - Logs and Monitoring: observability.md
     - Troubleshooting: troubleshooting.md
     - Configuration Examples: examples/README.md
-    - Glossary and FAQ: glossary.md
 - Developer Guide:
   - Contributing: development.md
   - Architecture: architecture.md
   - Scheduling and SLOs: scheduling.md
-  - Source Modules: source-reference.md
 - Benchmarking:
   - Benchmarking Guide: benchmarking.md
   - Profiling: profiling.md
-  - Performance Tuning: tuning.md
 - API Reference:
   - HTTP API: api.md
-  - Request Fields: request-schema.md
   - Python API: python-api.md
   - Configuration Reference: configuration.md
   - Environment Variables: environment.md
 - CLI Reference:
   - Command-Line Interface: cli.md
-- Community:
-  - Join the Community: community.md
 copyright: Aegaeon · Apache-2.0
 extra:
   alternate:

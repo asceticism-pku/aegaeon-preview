@@ -1,89 +1,38 @@
-# 开发与贡献指南
+# 开发与贡献
 
 ## 项目布局
 
 | 目录 | 内容 |
 |---|---|
-| aegaeon/ | 核心系统、HTTP、配置、路由、调度、Worker与缓存 |
-| ops/ | KV搬运C++/CUDA扩展 |
-| quick_model_loader/ | Rust/Python快速权重加载组件 |
-| foundry/ | 图序列化与恢复子项目及独立引擎集成 |
-| profiles/ | 采集脚本与性能数据 |
-| benchmark/、tools/ | 基准与专项测试工具；每个脚本的参数和环境要求见对应说明 |
-| tests/ | 控制逻辑与GPU相关测试 |
-| sim/ | SimPy策略仿真 |
-| plots/ | 绘图脚本；工作负载文件按工具所需路径另行准备 |
-| web/ | 内置页面 |
-| docs/zh/、docs/en/ | 中英文文档及配套示例 |
+| `aegaeon/` | API、路由、调度、Worker 与缓存 |
+| `ops/` | C++/CUDA KV 搬运 |
+| `quick_model_loader/` | Rust/Python 权重加载 |
+| `foundry/` | CUDA Graph 持久化 |
+| `profiles/`、`benchmark/`、`tools/` | Profiling 与性能工具 |
+| `sim/` | CPU 调度模拟器 |
+| `tests/` | 逻辑测试与 GPU 测试 |
+| `docs/en/`、`docs/zh/` | 文档与示例 |
 
-主项目LICENSE为Apache-2.0；新增组件与依赖需同时保留各自许可信息。Foundry 的独立集成说明见其子项目文档。
+## 贡献
 
-## 开发新功能
+通过 issue 反馈问题或提出功能建议。PR 应说明行为变化并包含相关测试，配置、CLI、API 和中英文文档保持一致。
 
-配置字段需要贯通解析→配置类→API创建→Ray env / Controller→Engine/Worker。新增功能应同时覆盖成功路径、失败路径、作用域、默认值和限制。
-
-模型与设备通过 registry/YAML 扩展；`aegaeon.models.ModelType` 和 `aegaeon.utils.DeviceType` 是兼容旧属性访问的命名空间。新增 KV 类型时同步实现描述、block 数量、搬运布局、sliding window 和状态复原测试。
-
-## 验证层次
-
-1. 无GPU的纯逻辑检查：图key选择、catalog路径、配置schema、策略决策、缓存映射计算。
-2. 带mock控制面测试：模型部署、reservation释放、busy拒绝、部分失败与SSE清理。
-3. 单模型真实GPU：加载、EOS、上下文、正确输出与退出。
-4. 多模型切换与并发：缓存搬运、请求守恒、输出一致、资源回落。
-5. 目标拓扑专项：P/D、多节点、Work Stealing 和 Foundry。使用 TP=1 基线；模型和输入类型的适用范围见[功能与兼容性](capabilities.md)，新增输入类型需补充对应的处理和推理测试。
-
-`tests/` 同时包含纯逻辑测试和依赖真实模型、CUDA 的测试。请按测试文件的依赖选择测试集。
+在仓库根目录运行相关测试：
 
 ```bash
 python -m pytest tests/test_cuda_graph_catalog_config.py
 ```
 
-该测试模块检查图存档目录规则，运行环境应安装 pytest 并包含正确的项目导入路径。新增运行逻辑应覆盖真实失败分支和边界条件。
-
-安装器回归测试用运行 pytest 的解释器创建临时环境，应在受支持的标准 CPython 3.10 环境中执行。选择器使用 CPython 3.10 的 wheel ABI，测试使用当前解释器而不安装 GPU 包。
-
-```bash
-python --version
-python -m pytest tests/test_docs_checker.py tests/test_install_quickstart.py -q
-python -m pytest tests/test_foundry_runtime_active_model.py -q
-```
-
-第一条命令应显示 Python 3.10。上述检查覆盖文档、安装器预检查和使用 mock 的 Foundry 存档处理，不会构建原生扩展，也不验证 GPU 服务。原生构建与导入仍需满足[安装工具链](installation.md)要求。
-
-`tests/test_init.py` 显式初始化服务配置，在隔离 Ray/Controller 边界的条件下运行真实的 `LLMService` 构造函数，检查各节点配置传播、就绪副本放置与路由、初始化失败传播，以及缺少服务配置时的错误契约。运行环境需支持导入完整服务依赖；测试不启动 Ray、不申请 GPU、不加载 checkpoint，也不分配模型缓存。
-
-```bash
-python -m pytest tests/test_init.py -q
-```
-
-`tests/test_serve*.py` 仍是历史 Ray/GPU 集成示例。用于集成验证前，应按当前服务配置、模型与设备 registry 适配示例，并准备真实 checkpoint 路径及足够的 Ray/cache 资源。上述隔离构造函数测试和逻辑测试通过，不代表端到端 GPU 服务已验证，也不代表 `tests/` 下全部测试均通过。
+GPU 测试需要各测试指定的模型和设备。源码入口见[系统架构](architecture.md)。
 
 ## 文档维护
 
-中英文文档使用 MkDocs Material 构建，配置文件分别为 `mkdocs.zh.yml` 和 `mkdocs.en.yml`。在独立文档环境安装依赖后运行：
-
 ```bash
 python -m pip install -r docs/requirements-docs.txt
-python -m mkdocs serve -f mkdocs.zh.yml
+python docs/check_docs.py
+python -m mkdocs build --strict -f mkdocs.en.yml
 python -m mkdocs build --strict -f mkdocs.zh.yml
+python docs/build_portable.py --output /tmp/aegaeon-docs.html --web-dir build/docs
 ```
 
-英文站点使用 `python -m mkdocs serve -f mkdocs.en.yml` 或 `python -m mkdocs build --strict -f mkdocs.en.yml`。发布时将两份构建结果放在同级 `zh/`、`en/` 目录，语言菜单即可跳转到对应文章。
-
-新增或修改参数时，同步更新两种语言的配置参考、CLI、HTTP 请求字段和示例；增删顶层类或函数时，也需同步源码模块索引。提交文档前运行 `python docs/check_docs.py`，并完成严格构建。
-
-生成支持中英文切换的离线文档页面：
-
-```bash
-python docs/build_portable.py --output /tmp/aegaeon-docs.html
-```
-
-同时更新服务内置的文档页面：
-
-```bash
-python docs/build_portable.py --output /tmp/aegaeon-docs.html --web-dir web
-```
-
-## 提交内容
-
-Pull Request 应说明用户可见行为、默认值、兼容性与失败处理，并附相关测试。文档更新应包含适用前提清楚、参数准确的示例。
+使用 `mkdocs serve` 并指定配置文件可本地预览。发布时将输出放在同级的 `en/`、`zh/` 目录。项目使用 Apache-2.0，保留各组件及依赖的许可证。

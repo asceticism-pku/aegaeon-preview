@@ -1,12 +1,8 @@
 # Python API
 
-## Public exports
+`LLMService`, `NodeConfig`, and `Request` provide direct tokenized inference. Prepare the model paths and profiles in `docs/en/examples/simple.yaml`, then start Ray with the `node_0` resource as described in [Deployment](deployment.md).
 
-The package lazily exports `LLMService`, `NodeConfig`, and `Request`. The Python interface accepts tokenized `Request` objects through `LLMService.serve()` and targets the Aegaeon control plane. It does not implement `vllm.LLM.generate(prompt, SamplingParams)`.
-
-## Synchronous inference example
-
-Complete [installation](installation.md), adapt the model path, device, and profiles in `docs/en/examples/simple.yaml`, and start a Ray cluster at `127.0.0.1:6789` with the custom resource `node_0`; see [environment setup](environment.md). Run this example from the repository root on Linux with CUDA:
+## Example
 
 ```python
 import os
@@ -60,25 +56,11 @@ finally:
     ray.shutdown()
 ```
 
-The example passes token IDs for a Completion-style request. Chat callers must apply the appropriate chat template first. Direct Python callers must also handle string stops and response wrapping, which the HTTP layer provides.
+## Interfaces
 
-## LLMService
+- `NodeConfig` sets each node's engines, caches, and models; memory sizes use bytes.
+- `Request` supplies prompt token IDs, output length, EOS, and context limits. Apply a chat template before tokenizing Chat messages.
+- `LLMService.serve()` returns per-request `StepOutput` lists or exceptions. Call it from synchronous code.
+- `deploy_model_replicas()` and `undeploy_model_replicas()` manage replicas asynchronously.
 
-| Entry point | Purpose / behavior |
-|---|---|
-| LLMService(cluster_config, model_placement_policy=None, request_routing_policy=None) | Initializes Controllers and event loops, waiting synchronously for initialization |
-| serve(requests) | Reserves a node for each request, submits concurrently via `asyncio.run`, and releases the reservation; returns `StepOutput` lists or exception objects per request; cannot be called directly inside a running event loop |
-| replay(result_file, num_models, arrival_rate, ...) | Replays by request arrival time and writes project statistics; see the implementation for timing and QoS definitions |
-| deploy_model_replicas(...) | Async replica deployment |
-| undeploy_model_replicas(...) | Async replica unloading |
-| reserve_node / release_node_reservation | Tracks routing reservations for HTTP requests; direct callers must release each reservation |
-| request_routing_snapshot / model_placement_stats_snapshot | Current and cumulative statistics |
-| reset() | Legacy helper; its Controller implementation references reset methods absent from Dispatchers and Engines. Reset a running service by stopping the process, confirming resource release, and restarting |
-
-`NodeConfig` defines each Controller's resources and policies. `node_id`, `num_prefill_engines`, and `num_decode_engines` are required. `model_cache_size` is in bytes; the server YAML setting uses GiB.
-
-`Request` contains `model`, `arrival_time`, `request_id`, `prompt_token_ids`, `decode_tokens`, and optional EOS, stop, min, and context parameters. Its constructor retains a `multimodal_input` field, but the supported scope requires `None`. The HTTP API supplies EOS sets and `max_model_len`; direct Python callers should provide those values explicitly.
-
-## Stability
-
-The Python interface changes with the control plane. The public entry points documented here are `LLMService`, `NodeConfig`, and `Request`. Applications should integrate through these names; new capabilities belong in tested package-level wrappers.
+Use the [HTTP API](api.md) for chat formatting, streaming, and response schemas.

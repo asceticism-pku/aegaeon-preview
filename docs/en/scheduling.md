@@ -1,46 +1,27 @@
 # Scheduling and SLOs
 
-## Token-level multiplexing
+Aegaeon switches models at batch-round and execution-quota boundaries. Quotas balance model-switch cost against token latency using [performance profiles](profiling.md).
 
-Long requests iterate repeatedly during Decode. Aegaeon can assign the GPU to other models without waiting for all requests of one model to finish, switching at batch-round and execution-quota boundaries. This schedules work on fixed engines; it does not create or delete a Ray actor for every token.
-
-Higher switch frequency raises weight-loading, KV-transfer, and control overhead. Larger quotas increase wait time for other models. Schedulers use estimated execution time, switching costs, and SLOs to choose quotas. Measure actual TTFT and TPOT to determine SLO attainment.
-
-## Simple mode
-
-SimpleScheduler handles Prefill and Decode in the same engine. Decode quotas use predicted step time, switching time, and a maximum quota. Invalid estimates enter a fallback; normal scheduling still requires complete profiles for the target device.
-
-## P/D mode
-
-PrefillDispatcher implements `fcfs-avgload`. The `sjf-avgload` policy branch remains a stub whose enqueue/dequeue methods raise `NotImplementedError`. PrefillScheduler selects the single-request batch implementation through `policy='uni'`. NodeConfig retains the related fields, while ServerConfig YAML does not map these options.
-
-DecodeScheduler manages model batches, rounds/turns, and alpha/quotas. Work Stealing moves one complete batch at a safe boundary after a round; it does not replace the quota formula.
+Simple mode schedules Prefill and Decode in one engine. P/D mode uses separate engine pools; Prefill dispatches by arrival/load, while Decode schedules model batches and token quotas.
 
 ## SLO settings
 
-LLMService does not explicitly forward these two variables to actors. For an existing Ray cluster, set identical values on every node before starting Ray, and execute these exports in the API process environment as well. See [Deployment](deployment.md) for Ray startup.
+Set these variables in the API and all Ray node environments before startup:
 
 ```bash
 export AEGAEON_TTFT_SLO=3
 export AEGAEON_TPOT_SLO=0.03
-aegaeon start --config /srv/aegaeon/config.yaml --ray-address 127.0.0.1:6789
 ```
 
-TTFT defaults to 10 seconds and TPOT to 0.1 seconds. utils reads them during import, so changes require restarting the relevant processes. LLMService's actor environment allowlist omits these variables; set identical values in every node process environment for multi-node and existing Ray deployments.
-
-## Measurement and evaluation
-
-TTFT includes queueing, model switching, Prefill, and required transfers. Decode intervals are also affected by other models. Client text-chunk timestamps and backend token StepOutput timestamps measure different things.
-
-`compute_request_metrics()` defines qos as a cumulative time ratio, rather than the usual fraction of requests meeting both TTFT and TPOT thresholds. Incomplete or mismatched outputs have special return branches. Report it as the project's qos metric with its definition rather than renaming it standard SLO attainment.
+Values are seconds. Defaults are 10 seconds for TTFT and 0.1 seconds for TPOT. Restart the relevant processes after changes.
 
 ## Policy scopes
 
-| Policy | Scope / trigger |
+| Policy | Scope |
 |---|---|
-| model_placement_policy | Selects CPU cache nodes during deploy |
-| request_routing_policy | Selects a READY physical node for a new request |
-| Prefill / Decode Scheduler | Chooses batches and model quotas within a node |
-| Decode Work Stealing | An idle node-local Decode receiver takes an eligible batch |
+| `model_placement_policy` | Selects replica nodes at deployment |
+| `request_routing_policy` | Selects a READY node for a new request |
+| Prefill/Decode scheduling | Selects batches and model quotas within a node |
+| [Decode Work Stealing](work-stealing.md) | Balances waiting Decode batches within a node |
 
-Control these policies separately for interpretable A/B experiments; they are not interchangeable.
+For metric definitions and tools, see [Benchmarking](benchmarking.md).

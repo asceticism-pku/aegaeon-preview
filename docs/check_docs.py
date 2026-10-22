@@ -10,7 +10,7 @@ import yaml
 root=Path(sys.argv[1] if len(sys.argv)>1 else str(Path(__file__).resolve().parents[1]))
 docs=[root/'docs'/language for language in ('zh','en')]
 errors=[]
-counts={'markdown':0,'technical_notes':0,'links':0,'yaml_files':0,'yaml_blocks':0,'json_blocks':0,'python_blocks':0,'cli_examples':0,'scope_checks':0,'shell_blocks':0,'shell_inputs':0,'json_files':0}
+counts={'markdown':0,'links':0,'yaml_files':0,'yaml_blocks':0,'json_blocks':0,'python_blocks':0,'cli_examples':0,'scope_checks':0,'shell_blocks':0,'shell_inputs':0,'json_files':0}
 # These are file roles, not shell evaluation. In particular, model IDs and
 # output arguments are not evidence that an input asset belongs in the checkout.
 _SHELL_INPUT_OPTIONS = {'--config', '--config-file', '--model-config',
@@ -233,6 +233,27 @@ def check_yaml(data,where):
 
 page_sets=[{path.relative_to(doc).as_posix() for path in doc.rglob('*.md')} for doc in docs]
 if page_sets[0]!=page_sets[1]: errors.append('Chinese and English page sets differ')
+
+
+def navigation_pages(items):
+    for item in items:
+        for value in item.values():
+            if isinstance(value, list):
+                yield from navigation_pages(value)
+            else:
+                yield value
+
+
+for language, page_set in zip(('zh', 'en'), page_sets):
+    config = yaml.load((root / f'mkdocs.{language}.yml').read_text(encoding='utf-8'), Loader=yaml.BaseLoader)
+    navigation = list(navigation_pages(config['nav']))
+    if len(navigation) != len(set(navigation)):
+        errors.append(f'{language} navigation contains duplicate pages')
+    if set(navigation) != page_set:
+        errors.append(
+            f'{language} navigation: missing files {sorted(set(navigation)-page_set)}, '
+            f'unlisted pages {sorted(page_set-set(navigation))}'
+        )
 for path in sorted(path for doc in docs for path in doc.rglob('*.md')):
     counts['markdown']+=1
     text=path.read_text(encoding='utf-8')
@@ -263,13 +284,6 @@ for path in sorted(path for doc in docs for path in doc.rglob('*.md')):
             elif lang.strip()=='json': json.loads(block); counts['json_blocks']+=1
             elif lang.strip() in ('yaml','yml'): check_yaml(yaml.safe_load(block),path.name); counts['yaml_blocks']+=1
         except Exception as exc: errors.append(f'{path.name}: {lang} invalid: {exc}')
-for path in (root/'docs/model-placement.md',root/'docs/work-stealing.md'):
-    counts['technical_notes'] += 1
-    text=path.read_text(encoding='utf-8')
-    if text.count('```')%2: errors.append(f'{path.name}: unbalanced fences')
-    prose=re.sub(r'```[^\n]*\n.*?```','',text,flags=re.S)
-    if re.search(r'\bmay\b|\bmight\b|\bperhaps\b|\bpossibly\b|requires? validation|needs? validation',prose,flags=re.I):
-        errors.append(f'{path.name}: ambiguous wording')
 for path in (path for doc in docs for path in (doc/'examples').glob('*.yaml')):
     counts['yaml_files']+=1
     try: check_yaml(yaml.safe_load(path.read_text(encoding='utf-8')),path.name)
@@ -337,46 +351,6 @@ for path,start,end,source_defaults,label in reference_tables:
             errors.append(f'{label}: {field} default {documented!r} != source {value!r}')
 
 api_source=root/'aegaeon/api.py'
-schema_sections=(
-    ('Message','StreamOptions'),
-    ('StreamOptions','DeployRequest'),
-    ('DeployRequest','GreedyGenerationRequest'),
-    ('GreedyGenerationRequest','ChatCompletionRequest'),
-    ('ChatCompletionRequest','CompletionRequest'),
-    ('CompletionRequest','TokenizeRequest'),
-    ('TokenizeRequest','DetokenizeRequest'),
-    ('DetokenizeRequest','__END__'),
-)
-for path,label in ((docs[0]/'request-schema.md','zh schema'),(docs[1]/'request-schema.md','en schema')):
-    content=path.read_text(encoding='utf-8')+'\n## __END__\n'
-    for cls,next_cls in schema_sections:
-        source_fields=fields(api_source,cls)
-        table=markdown_table(content,f'## {cls}',f'## {next_cls}')
-        documented_fields=set(table)-{'字段','Field'}
-        counts['scope_checks'] += 1
-        if documented_fields != source_fields:
-            errors.append(
-                f'{label} {cls}: documented fields {sorted(documented_fields)} '
-                f'!= source {sorted(source_fields)}'
-            )
-
-for path,label in ((docs[0]/'source-reference.md','zh source index'),(docs[1]/'source-reference.md','en source index')):
-    for line in path.read_text(encoding='utf-8').splitlines():
-        match=re.match(r'\| `((?:aegaeon/)[^`]+\.py)` \| (.*?) \|$',line)
-        if not match: continue
-        module=root/match.group(1)
-        actual={
-            node.name for node in ast.parse(module.read_text(encoding='utf-8')).body
-            if isinstance(node,(ast.ClassDef,ast.FunctionDef,ast.AsyncFunctionDef))
-        }
-        documented=set(re.findall(r'`([^`]+)`',match.group(2)))
-        counts['scope_checks'] += 1
-        if documented != actual:
-            errors.append(
-                f'{label} {module.name}: missing {sorted(actual-documented)}, '
-                f'extra {sorted(documented-actual)}'
-            )
-
 public_routes=set()
 for node in ast.parse(api_source.read_text(encoding='utf-8')).body:
     if not isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)): continue

@@ -1,27 +1,8 @@
 # Configuration Reference
 
-## YAML structure and precedence
-
-Configuration has three main sections: `server`, `models`, and `devices`. `aegaeon start --config` is required. Use absolute model paths and explicit memory budgets. Prepare identical model files and profiles on every Ray node before startup.
-
-`create_service()` applies these per-field precedence rules:
-
-| Setting | Effective rule |
-|---|---|
-| host / port | CLI passes directly to uvicorn; server YAML does not read these fields |
-| Ray address | `--ray-address` → `AEGAEON_RAY_ADDRESS` → `RAY_ADDRESS` → `auto` |
-| Startup models | `--models` → `server.startup_models` → all configured models |
-| tensor_parallel_size | Must be 1; a nonzero CLI value wins; unset or 0 reads YAML / ServerConfig |
-| Engine counts, CPU slabs, weight cache size | Normal startup uses ServerConfig; corresponding CLI values mainly serve as fallbacks |
-| SLO | Environment variables read at utils import, not server YAML |
-
-For omitted server fields, `getattr` reads ServerConfig defaults. Put Engine topology directly in YAML; matching CLI options such as `--num-engines` serve only the fallback path.
-
-Omitted or null startup_models starts all configured models. `[]` starts an empty service for later deployment; a nonempty list selects those models. CLI `--models ''` expresses an empty set. Unknown models fail startup. Duplicate CLI names are deduplicated; YAML lists require unique nonempty strings.
+YAML has three sections: `server`, `models`, and `devices`. Put engine topology and memory budgets in `server`; pass host/port and the Ray address through the CLI. See the [examples](examples/README.md).
 
 ## ServerConfig defaults
-
-These are class defaults. Size production budgets from host memory, model count, and concurrency.
 
 | Field | Default | Meaning / constraints |
 |---|---:|---|
@@ -43,9 +24,9 @@ These are class defaults. Size production budgets from host memory, model count,
 | startup_models | null | null=all models; []=empty service |
 | cuda_graph | CudaGraphConfig() | Disabled by default; see below |
 
-Default CPU KV capacity is 128 GiB per node, in addition to the CPU weight cache, mapped weight files, and process memory. Hosts below these budgets need smaller slab and cache settings.
+CPU KV defaults to 128 GiB per node; size slabs and the weight cache for available host memory. Simple mode uses `num_engines > 0` with both P/D counts set to 0. P/D mode uses `num_engines: 0` with at least one engine of each stage.
 
-A P/D topology needs at least one Prefill Engine and one Decode Engine. Simple mode instead sets `num_engines>0` and both P/D Engine counts to 0.
+`startup_models: null` loads all configured models; `[]` starts empty; a list selects models. CLI `--models` overrides this selection.
 
 ## Model entries
 
@@ -59,7 +40,7 @@ A P/D topology needs at least one Prefill Engine and one Decode Engine. Simple m
 | id | Unset | Generated sequentially when all are omitted; when explicit, supply an ID for every model |
 | tool_parser | null | Nonempty vLLM tool parser name; explicitly selects generated function-call parsing for a model alias |
 
-`params: 4` means `4 × 2^30` parameters. Usually omit params so the registry reads weight metadata. If that fails, divide the actual total parameter count by `2^30` before setting `params`. Model entries parse only the fields above; GPU clock fields currently never reach ModelSpec.
+Usually omit `params` to read weight metadata. Explicit values use units of `2^30` parameters.
 
 ## Device entries
 
@@ -70,8 +51,6 @@ A P/D topology needs at least one Prefill Engine and one Decode Engine. Simple m
 | bandwidth | Optional; multiplied by 2^30 to obtain bytes/s; omission attempts NVML detection |
 | profile | Retained in DeviceSpec.extra as a performance directory alias |
 | Other fields | Retained in DeviceSpec.extra; only fields read by an implementation have an effect |
-
-PCIe generation and width provide a bandwidth estimate. Use profiling data for measured H2D bandwidth. Omitting devices leaves the registry empty. Runtime detection uses PyTorch CUDA for GPU names and capacity and NVML for a PCIe bandwidth estimate. Configure the device explicitly in YAML if device queries or bandwidth detection fail.
 
 ## CUDA graph defaults and constraints
 
@@ -86,8 +65,8 @@ PCIe generation and width provide a bandwidth estimate. Use profiling data for m
 | region_size_bytes | 274877906944 | 256 GiB virtual address range; positive and 2 MiB aligned |
 | scratch_size_bytes | 4294967296 | 4 GiB; positive, 2 MiB aligned, and smaller than region_size_bytes |
 
-Normal Simple execution does not enable the Foundry hook. Use P/D Decode to test this integration. See [CUDA Graphs](cuda-graphs.md).
+Enable graphs on P/D Decode Workers and specify one maximum-length bucket. See [CUDA Graphs](cuda-graphs.md).
 
 ## After editing configuration
 
-Registries live in process-global state, and `set_model_registry()` returns immediately after initialization. Restart the service after YAML changes. Deployment APIs change runtime state while leaving the YAML file unchanged.
+Restart the service after changing YAML. Deployment APIs update runtime state separately.

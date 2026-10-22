@@ -15,5 +15,3 @@
 ```bash
 curl -sS http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/json' --data-binary @docs/zh/examples/chat-request.json
 ```
-
-这些配置按顺序在独占 GPU 集群中运行。SAVE 和 LOAD 使用相同的布局、模型与依赖。

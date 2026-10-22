@@ -1,57 +1,42 @@
-# 生成参数与停止语义
+# 生成参数
 
 ## 贪心解码
 
-Worker 计算 logits 后直接取 argmax，所以采样字段只接受与贪心解码一致的值。`seed` 可以通过请求校验，但解码仍采用 argmax，不启用随机采样。
-
-| 参数 | 接受的值 |
+| 参数 | 可用取值 |
 |---|---|
-| n | 1 |
-| temperature | 0 或 null |
-| top_p | 1 或 null |
-| top_k | 1 或 null |
-| min_p | 0 或 null |
-| frequency_penalty / presence_penalty | 0 或 null |
-| repetition_penalty | 1 或 null |
-| logit_bias | 空字典或 null |
-| use_beam_search | false |
-| length_penalty | 1 |
-| priority | 0 |
-| Chat logprobs | false / null |
-| Chat top_logprobs | 0 / null |
-| Completion logprobs | 只能 null / 省略 |
+| `n` | `1` |
+| `temperature` | `0` 或 `null` |
+| `top_p`、`top_k` | `1` 或 `null` |
+| `min_p` | `0` 或 `null` |
+| `frequency_penalty`、`presence_penalty` | `0` 或 `null` |
+| `repetition_penalty` | `1` 或 `null` |
+| `logit_bias` | 空字典或 `null` |
+| `use_beam_search` | `false` |
+| `length_penalty` | `1` |
+| `priority` | `0` |
+| Chat `logprobs` / `top_logprobs` | `false` 或 `null` / `0` 或 `null` |
+| Completion `logprobs` | `null` 或省略 |
 
-## 输出长度
+## 长度与停止
 
-Chat 的 `max_tokens` 默认为 128，Completion 默认为 16。Chat 也接受 `max_completion_tokens`。若同时设置两个字段，取值必须相等；选定的输出上限至少为 1。
+Chat 默认 `max_tokens=128`，Completion 默认 `max_tokens=16`。Chat 也接受 `max_completion_tokens`，同时填写时两者一致。输入与输出的总长度受 `max_model_len` 限制。
 
-上下文长度包括 prompt 和生成的 token，`max_tokens` 是生成上限。后端在达到输出上限、上下文边界或有效的停止 token（包括 EOS）时结束请求。字符串 `stop` 由 HTTP 层截断可见文本，后端继续执行至自身停止条件。纯文本路径没有在提交前统一拒绝过长 prompt；调用方应确保 prompt token 数小于模型的 `max_model_len`。
-
-## 停止与解码
-
-| 参数 | 行为 |
+| 参数 | 含义 |
 |---|---|
-| stop | 一个字符串或字符串列表，匹配后截断可见输出 |
-| stop_token_ids | 非负 token ID 列表，加入停止 token 集合 |
-| ignore_eos | 默认 false；true 跳过 EOS 停止条件，输出上限仍然生效 |
-| min_tokens | 0 到 max_tokens；控制何时接受停止 token / stop |
-| include_stop_str_in_output | 默认 false；是否保留匹配到的 stop 字符串 |
-| skip_special_tokens | 默认 true；启用工具解析时使用 false，以保留工具标记 |
-| spaces_between_special_tokens | 默认 true；启用工具解析时使用 false，其余请求按字段值传给 tokenizer.decode |
-| return_token_ids | 默认 false；返回额外 token ID 字段 |
+| `stop` | 在可见文本中匹配的停止字符串 |
+| `stop_token_ids` | 额外的停止 token ID |
+| `ignore_eos` | 忽略 EOS，仍保留长度上限 |
+| `min_tokens` | 接受停止条件前的最少输出长度 |
+| `include_stop_str_in_output` | 保留匹配的停止字符串 |
+| `skip_special_tokens` | 解码时省略特殊 token |
+| `return_token_ids` | 在响应中返回 token ID |
 
-命中的 EOS 或 stop token 会从可见文本中去除。`usage.completion_tokens` 按处理后的 token IDs 计算。字符串截断时，文本会重新编码，因此这个计数与 Worker 的原始执行步数口径不同。
+`finish_reason` 为 `stop`、`length`，成功解析函数调用时为 `tool_calls`。
 
-普通文本生成的 `finish_reason` 为 `stop` 或 `length`：前者表示命中 EOS、stop token 或 stop 字符串，后者表示后端达到 `max_tokens` 或 prompt 与输出合计达到 `max_model_len`。Chat 成功解析出函数调用时，`finish_reason` 改为 `tool_calls`。
+## Prompt 格式
 
-## Prompt 截断
+`truncate_prompt_tokens` 限制输入 token 数；`truncation_side='left'` 保留末尾，`'right'` 保留开头。`-1` 保持纯文本输入不变。
 
-`truncate_prompt_tokens` 可设为正整数、-1 或 null。在纯文本 `_truncate_prompt` 路径中，-1 表示不截断；使用正整数时默认保留末尾，设置 `truncation_side='right'` 则保留开头。该说明适用于字符串或 token ID prompt；Chat 内容块走 vLLM renderer 的处理路径。
+Chat 默认 `add_special_tokens=false`、`add_generation_prompt=true`。使用 `continue_final_message=true` 时将 `add_generation_prompt` 设为 `false`。
 
-`add_special_tokens` 在 Chat 中默认为 false，在 Completion 中默认为 true。Chat 默认 `add_generation_prompt=true`；设置 `continue_final_message=true` 时，还须设置 `add_generation_prompt=false`。
-
-## ID 与用户标识
-
-请求 schema 接受 `request_id` 和 `user`，后端仍使用自己生成的内部 request ID。用户级鉴权由网关负责，客户端重试与跨进程幂等由调用方实现；调度优先级沿用服务现有策略。
-
-完整字段及默认值见[请求 Schema](request-schema.md)。
+完整请求类型和默认值可在运行中服务的 `/docs` 和 `/openapi.json` 查看。

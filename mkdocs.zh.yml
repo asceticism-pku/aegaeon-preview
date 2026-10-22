@@ -58,31 +58,24 @@ nav:
   - 进阶功能:
     - Decode Work Stealing: work-stealing.md
     - CUDA Graph与Foundry: cuda-graphs.md
-    - 功耗与频率: energy.md
   - 运维与示例:
     - 日志与监控: observability.md
     - 故障排查: troubleshooting.md
     - 配置示例: examples/README.md
-    - 常见问题: glossary.md
 - 开发者指南:
   - 贡献指南: development.md
   - 系统架构: architecture.md
   - 调度与SLO: scheduling.md
-  - 源码模块: source-reference.md
 - 基准测试:
   - 基准测试指南: benchmarking.md
   - Profiling: profiling.md
-  - 性能调优: tuning.md
 - API 参考:
   - HTTP API: api.md
-  - 请求字段: request-schema.md
   - Python API: python-api.md
   - 配置参考: configuration.md
   - 环境变量: environment.md
 - CLI 参考:
   - 命令行接口: cli.md
-- 社区:
-  - 参与社区: community.md
 copyright: Aegaeon · Apache-2.0
 extra:
   alternate:
