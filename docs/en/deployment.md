@@ -1,6 +1,8 @@
 # Deployment
 
-A physical Ray node runs one Controller and shares its CPU caches among engines. Each engine uses one GPU; `nnodes` counts physical nodes.
+Each configured Aegaeon node runs one Controller and shares its CPU caches among that node's engines. The supported configuration is TP=1, so each engine uses one GPU. Standard deployments use one Aegaeon node per physical Ray node; `server.nnodes` counts nodes, not GPUs.
+
+A multi-GPU host normally uses `nnodes: 1`. Python integrations can isolate multiple logical nodes on one host with separate `NodeConfig.cuda_visible_devices` and `NodeConfig.shm_dir` settings.
 
 ## Execution modes
 
@@ -9,7 +11,7 @@ A physical Ray node runs one Controller and shares its CPU caches among engines.
 | Simple | `num_engines > 0`; both P/D counts are 0 |
 | P/D | `num_engines: 0`; at least one Prefill and one Decode Engine |
 
-Use the [configuration examples](examples/README.md) for single-GPU, P/D, or multi-node layouts. Prepare model files and profiles on every node.
+Use the [configuration examples](examples/README.md) for single-GPU, P/D, or multi-node layouts. Make the same model files and matching profiles available on every node.
 
 ## Ray cluster
 
@@ -33,6 +35,6 @@ aegaeon start --config /srv/aegaeon/config.yaml --ray-address HEAD_IP:6789
 
 ## Resources
 
-Set GPU visibility consistently on each node. Allocate Ray CPUs for each Worker's `worker_num_cpus` and the Controller; use `ray status` to inspect resources.
+Each node needs one visible GPU per configured engine. Its Ray CPU budget must cover `server.worker_num_cpus` logical CPUs per Worker, plus capacity for the Controller. `ray status` reports the cluster's CPU and GPU resources.
 
-Set [SLO variables](scheduling.md#slo-settings) on all nodes before starting Ray. Independent services need isolated Ray instances and shared-memory directories. Stop the foreground service to disconnect its driver; manage an existing Ray cluster separately.
+To override the default [SLO settings](scheduling.md#slo-settings), set the variables in the API and all Ray node environments before startup. Independent services need separate Ray instances and shared-memory directories. Stopping the foreground service disconnects its Ray driver; manage an existing Ray cluster separately.

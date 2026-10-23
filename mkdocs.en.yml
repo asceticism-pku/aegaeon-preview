@@ -63,7 +63,6 @@ nav:
     - Troubleshooting: troubleshooting.md
     - Configuration Examples: examples/README.md
 - Developer Guide:
-  - Contributing: development.md
   - Architecture: architecture.md
   - Scheduling and SLOs: scheduling.md
 - Benchmarking:

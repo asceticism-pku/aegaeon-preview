@@ -1,6 +1,6 @@
 # Configuration Reference
 
-YAML has three sections: `server`, `models`, and `devices`. Put engine topology and memory budgets in `server`; pass host/port and the Ray address through the CLI. See the [examples](examples/README.md).
+YAML has three sections: `server` defines engine topology and memory budgets, `models` registers model paths and profiles, and `devices` describes GPU capacity and bandwidth. The CLI supplies the bind address, port, and Ray address. See the [examples](examples/README.md).
 
 ## ServerConfig defaults
 
@@ -34,13 +34,11 @@ CPU KV defaults to 128 GiB per node; size slabs and the weight cache for availab
 |---|---|---|
 | name | Required | Client-facing model name; need not match the profile folder |
 | path | Empty string | Local weights; when unset, ModelSpec.path() triggers download |
-| params | null | **Input multiplied by 2^30 to obtain parameter count** |
+| params | null | Input multiplied by 2^30 gives the parameter count; null infers it from local weight metadata |
 | profile | Empty string | Performance directory alias; otherwise normalized from the model name's last segment |
 | max_model_len | null | Total context length override, still subject to model capability |
 | id | Unset | Generated sequentially when all are omitted; when explicit, supply an ID for every model |
-| tool_parser | null | Nonempty vLLM tool parser name; explicitly selects generated function-call parsing for a model alias |
-
-Usually omit `params` to read weight metadata. Explicit values use units of `2^30` parameters.
+| tool_parser | null | A supported vLLM parser name; overrides selection from the model name/path |
 
 ## Device entries
 
@@ -65,8 +63,4 @@ Usually omit `params` to read weight metadata. Explicit values use units of `2^3
 | region_size_bytes | 274877906944 | 256 GiB virtual address range; positive and 2 MiB aligned |
 | scratch_size_bytes | 4294967296 | 4 GiB; positive, 2 MiB aligned, and smaller than region_size_bytes |
 
-Enable graphs on P/D Decode Workers and specify one maximum-length bucket. See [CUDA Graphs](cuda-graphs.md).
-
-## After editing configuration
-
-Restart the service after changing YAML. Deployment APIs update runtime state separately.
+CUDA Graph save/load is opt-in and runs on P/D Decode Workers when `mode` is `'save'` or `'load'`. See [CUDA Graphs](cuda-graphs.md).

@@ -1,6 +1,8 @@
 # Python API
 
-`LLMService`, `NodeConfig`, and `Request` provide direct tokenized inference. Prepare the model paths and profiles in `docs/en/examples/simple.yaml`, then start Ray with the `node_0` resource as described in [Deployment](deployment.md).
+`LLMService`, `NodeConfig`, and `Request` provide direct inference from token IDs. The YAML file supplies model and device metadata; `NodeConfig` defines each node's engines, caches, and initially cached models.
+
+The example uses [the Simple-mode configuration](examples/simple.yaml), with paths and profiles adapted to the host. Its relative `config_path` assumes a repository-root working directory; an installed-wheel application can use an absolute path to its own copy. The Ray runtime must already expose the `node_0` resource described in [Deployment](deployment.md).
 
 ## Example
 
@@ -60,7 +62,7 @@ finally:
 
 - `NodeConfig` sets each node's engines, caches, and models; memory sizes use bytes.
 - `Request` supplies prompt token IDs, output length, EOS, and context limits. Apply a chat template before tokenizing Chat messages.
-- `LLMService.serve()` returns per-request `StepOutput` lists or exceptions. Call it from synchronous code.
+- `LLMService.serve()` returns one `StepOutput` list or exception per request, in input order. It runs its own event loop and is called from synchronous code.
 - `deploy_model_replicas()` and `undeploy_model_replicas()` manage replicas asynchronously.
 
 Use the [HTTP API](api.md) for chat formatting, streaming, and response schemas.

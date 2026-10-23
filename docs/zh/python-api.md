@@ -1,6 +1,8 @@
 # Python API
 
-`LLMService`、`NodeConfig` 和 `Request` 提供直接传入 token 的推理接口。先配置 `docs/zh/examples/simple.yaml` 中的模型路径和 profile，再按[部署说明](deployment.md)启动带 `node_0` 资源的 Ray。
+`LLMService`、`NodeConfig` 和 `Request` 提供直接传入 token ID 的推理接口。YAML 文件提供模型和设备元数据；`NodeConfig` 定义各节点的 Engine、缓存和初始缓存模型。
+
+示例使用 [Simple 模式配置](examples/simple.yaml)，模型路径和性能 profile 需匹配本机环境。相对的 `config_path` 假定工作目录为仓库根目录；通过 wheel 安装的应用可使用自有配置副本的绝对路径。Ray 运行时需已具备[部署说明](deployment.md)中的 `node_0` 资源。
 
 ## 示例
 
@@ -60,7 +62,7 @@ finally:
 
 - `NodeConfig` 配置节点的 Engine、缓存和模型，内存大小以字节计。
 - `Request` 提供输入 token ID、输出长度、EOS 和上下文限制；Chat 消息先应用聊天模板。
-- `LLMService.serve()` 返回各请求的 `StepOutput` 列表或异常对象，在同步代码中调用。
+- `LLMService.serve()` 按输入顺序为每个请求返回一个 `StepOutput` 列表或异常对象。它运行自己的事件循环，调用方使用同步代码。
 - `deploy_model_replicas()` 和 `undeploy_model_replicas()` 异步管理副本。
 
 聊天格式、流式输出和响应 schema 可直接使用 [HTTP API](api.md)。

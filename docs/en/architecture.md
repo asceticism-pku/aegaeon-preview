@@ -4,7 +4,7 @@
 flowchart TD
     Client[Application client] --> API[FastAPI interface]
     API --> Service[LLMService routing and replicas]
-    Service --> Ctrl[Selected physical node Controller]
+    Service --> Ctrl[Selected node Controller]
     Ctrl --> PD[PrefillDispatcher]
     PD --> PE[PrefillEngine and Workers]
     PE -->|First token| Out[StepOutput and responses]
@@ -27,16 +27,14 @@ flowchart TD
     QC --> Simple
 ```
 
-Simple and P/D are alternative execution modes. Each physical node has one Controller and shared CPU caches; each Worker has its own GPU KV cache, coordinated by the node's BlockManager.
+Simple and P/D are alternative execution modes. Each configured node has one Controller and shared CPU caches. Several configured nodes can share a physical host. Workers have separate GPU KV caches, coordinated by their node's BlockManager.
 
 ## Components
 
 - **API / LLMService:** request formatting, replica placement, and routing.
 - **Controller / Schedulers:** node-local dispatch, batches, and model quotas.
 - **StageEngine / Worker:** GPU execution using vLLM models and kernels.
-- **QuickCache:** CPU model weights and fast loading.
+- **QuickCache / QuickLoader:** shared CPU model weights and loading onto GPUs.
 - **BlockManager:** request KV state and CPU/GPU transfers.
 
-A request selects one READY node. Prefill produces the first token; unfinished requests continue with Decode. Model switches preserve KV state through the node's CPU cache. See [Scheduling](scheduling.md) and [Memory](memory.md) for details.
-
-
+A request is routed to a node with a READY replica of its model. In P/D mode, Prefill produces the first token and unfinished requests continue on a Decode engine. In Simple mode, the same engine handles both phases. The node's CPU KV cache preserves request state across model switches. See [Scheduling](scheduling.md) and [Memory](memory.md) for details.

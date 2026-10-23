@@ -1,21 +1,22 @@
 # CUDA Graphs
 
-Aegaeon uses [Foundry](https://github.com/foundry-org/foundry) to save and restore Decode graphs, reducing CPU launch overhead. The integration runs on P/D Decode Workers with TP=1. Prefill and Simple Workers use eager execution.
+The optional CUDA Graph integration uses the repository's pinned [Foundry fork](https://github.com/asceticism-pku/foundry) to capture and restore Decode execution with less CPU launch overhead. It is disabled by default and supports P/D Decode Workers with TP=1. Prefill and Simple Workers use eager execution.
 
-## Install Foundry
+## Foundry installation
 
-Use the same environment as Aegaeon and run from the repository root:
+Foundry is installed separately in the same environment as Aegaeon. From the repository root:
 
 ```bash
+git submodule update --init --recursive foundry
 conda install -c conda-forge 'boost-cpp>=1.83' 'boost>=1.83' 'cmake>=4.0' ninja
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 python -m pip install --no-build-isolation -e ./foundry
 export AEGAEON_FOUNDRY_HOOK_PATH="$(python -c 'from pathlib import Path; import foundry.ops; print(Path(foundry.ops.__file__).resolve().parent / "libcuda_hook.so")')"
 ```
 
-Install Foundry on every Decode node and use matching absolute hook/library paths. For library loading errors, see [Troubleshooting](troubleshooting.md).
+Each Decode node needs Foundry and valid absolute hook/library paths before its Workers start. For library loading errors, see [Troubleshooting](troubleshooting.md).
 
-## Configure
+## Graph configuration
 
 ```yaml
 server:
@@ -30,11 +31,11 @@ server:
     seq_len_buckets: [4096]
 ```
 
-Use exactly one maximum sequence-length bucket. Graph replay requires an exact batch-size match and a sequence length within that bucket; other batches use eager execution.
+SAVE and LOAD currently require one maximum sequence-length bucket. A Decode batch replays a graph only if its size exactly matches a configured batch size and its sequence length fits within that bucket. Other batches use eager execution. LOAD requires complete archives with a compatible memory layout; archive or layout validation errors stop loading.
 
-## Save and load
+## Archive creation and reuse
 
-The [SAVE and LOAD examples](examples/README.md) provide complete configurations. Adjust model paths and budgets, then start SAVE:
+SAVE captures the configured graphs when a model is loaded onto a Decode Worker; LOAD restores them from the archive. The [SAVE and LOAD examples](examples/README.md) provide complete configurations. After adjusting model paths and budgets, start SAVE:
 
 ```bash
 aegaeon start --config docs/en/examples/foundry-save.yaml --ray-address local
@@ -54,4 +55,4 @@ For multiple models, send a request for each configured model. Wait for the requ
 aegaeon start --config docs/en/examples/foundry-load.yaml --ray-address local
 ```
 
-`Foundry decode replay active` identifies graph execution in Worker logs. Record new archives after changing model weights, graph sizes, memory layout, or runtime dependencies.
+`Foundry decode replay active` identifies graph execution in Worker logs. Changes to model weights, graph sizes, memory layout, or runtime dependencies require fresh archives.

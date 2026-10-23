@@ -2,7 +2,7 @@
 
 ## OpenAI 风格客户端
 
-将 OpenAI 客户端指向服务的 `/v1` 地址：
+OpenAI 客户端通过服务的 `/v1` 地址连接。`model` 指定已部署模型，当前生成采用贪心解码：
 
 ```python
 from openai import OpenAI
@@ -21,7 +21,7 @@ print(response.choices[0].message.content)
 
 ## 流式输出
 
-设置 `stream=True`，读取 `chunk.choices[0].delta.content`。usage chunk 的 `choices` 为空：
+设置 `stream=True` 后，文本通过 `chunk.choices[0].delta.content` 返回。`stream_options.include_usage=true` 会在末尾添加 usage chunk，其 `choices` 为空：
 
 ```python
 stream = client.chat.completions.create(
@@ -33,12 +33,12 @@ for chunk in stream:
         print(chunk.choices[0].delta.content or '', end='', flush=True)
 ```
 
-原始 SSE 响应以 `data: [DONE]` 结束。Completion 使用 `/v1/completions`，`prompt` 可为字符串或 token ID 列表。
+原始 SSE 响应以 `data: [DONE]` 结束。Completion 请求使用 `/v1/completions`，`prompt` 接受字符串或 token ID 列表。
 
-## 函数工具
+## 工具调用
 
-按 OpenAI 消息格式传入 `tools` 和 `tool_choice`。模型需有对应的 vLLM parser，可在 YAML 模型项或部署请求中通过 `tool_parser` 指定。
+Aegaeon 支持 OpenAI 风格的 `tools` 和 `tool_choice`。传入工具时，`tool_choice` 默认为 `auto`；`none` 关闭解析。工具调用需要受支持的 vLLM 解析器，可根据模型名称或路径推断，也可通过 YAML 模型条目或部署请求中的 `tool_parser` 显式指定。
 
-客户端读取 `tool_calls`、执行函数，再将结果作为 tool 消息发回。工具解析会缓冲输出，完成后统一返回。
+客户端执行返回的 `tool_calls`，并将结果作为通过 `tool_call_id` 关联的 `tool` 消息提交。启用工具解析器时，流式响应会缓冲生成的输出，直到生成完成，再一起返回解析后的文本和工具调用。
 
-可用取值见[生成参数](generation.md)，端点与 schema 见 [HTTP API](api.md)。
+可用取值见[生成参数](generation.md)，端点和请求结构见 [HTTP API](api.md)。

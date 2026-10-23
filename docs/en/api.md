@@ -1,6 +1,6 @@
 # HTTP API
 
-The service listens on port 8000 by default. Inspect complete request types and defaults at `/docs`, `/redoc`, or `/openapi.json` on the running service. Configure authentication at your gateway.
+Aegaeon exposes an OpenAI-style API for deployed models and listens on port 8000 by default. The running service publishes request schemas and defaults at `/docs`, `/redoc`, and `/openapi.json`. Authentication is configured at your gateway.
 
 ## Endpoints
 
@@ -23,11 +23,13 @@ The service listens on port 8000 by default. Inspect complete request types and 
 
 | Status | Meaning |
 |---|---|
-| 400 | Invalid model, generation value, or operation parameter |
-| 422 | Invalid request schema |
+| 400 | Invalid model or parameter, or insufficient KV-cache capacity for a request |
+| 422 | Invalid request schema, including unsupported generation fields |
 | 429 | Access rate limit |
 | 503 | No READY replica |
 | 507 | Deployment failed and no READY replica remains |
 | 500 | Server error; inspect service logs |
+
+A KV-cache capacity failure after streaming starts is returned as SSE data containing an `error` object, followed by `data: [DONE]`.
 
 Runtime interfaces are described in [Monitoring](observability.md).

@@ -4,6 +4,8 @@
 
 ## doctor
 
+`doctor` 检查当前 Python 环境和本机运行条件。提供配置文件后，还会检查模型路径、性能 profile、拓扑和内存预算。
+
 ```bash
 aegaeon doctor
 CUDA_VISIBLE_DEVICES=0 aegaeon doctor --check-cuda
@@ -11,9 +13,11 @@ CUDA_VISIBLE_DEVICES=0 aegaeon doctor --check-cuda
 
 | 参数 | 解析器默认值 | 说明 |
 |---|---|---|
-| --check-cuda | false | 在已分配的 GPU 上执行微型 PyTorch/CuPy CUDA 操作并导入 vLLM 原生扩展 |
-
-检查依赖；`--check-cuda` 同时执行 CUDA 检查。
+| --config | None | 用于本地模型、性能 profile、拓扑和内存检查的 YAML 文件 |
+| --models | None | 逗号分隔的启动模型列表；需要 --config |
+| --tensor-parallel-size | None | 非零值覆盖 YAML，0 沿用 YAML；需要 --config，最终值必须为 1 |
+| --strict | false | 警告和失败均返回非零退出码 |
+| --check-cuda | false | 执行小型 PyTorch/CuPy CUDA 运算，导入 vLLM 原生扩展，检查可见 GPU，并测试单页主机内存注册 |
 
 ## start
 
@@ -26,14 +30,14 @@ aegaeon start --config /srv/aegaeon/config.yaml --host 127.0.0.1 --port 8000 --r
 | --config | 必填 | YAML 文件 |
 | --host | 0.0.0.0 | 监听地址 |
 | --port | 8000 | 监听端口 |
-| --models | None | 逗号分隔启动模型；覆盖 startup_models |
+| --models | None | 逗号分隔的启动模型列表；覆盖 startup_models；空字符串表示启动时不加载模型 |
 | --num-prefill-engines | 1 | 正常路径以 YAML ServerConfig 为准 |
 | --num-decode-engines | 1 | 同上 |
 | --num-engines | 0 | 同上 |
 | --tensor-parallel-size | None | 显式非零值覆盖 YAML；0 沿用 YAML |
-| --model-cache-size-gb | 20 | fallback 值，CPU 权重缓存 GiB |
-| --cpu-num-slabs | 15 | fallback 值 |
-| --cpu-slab-size-gb | 1 | fallback 值，GiB |
+| --model-cache-size-gb | 20 | CPU 权重缓存容量回退值，单位 GiB |
+| --cpu-num-slabs | 15 | slab 数量回退值 |
+| --cpu-slab-size-gb | 1 | slab 大小回退值，单位 GiB |
 | --ray-address | None | 指定集群，优先于环境变量 |
 
 拓扑和内存预算在 [YAML 配置](configuration.md)中设置。
@@ -50,10 +54,10 @@ aegaeon deploy Qwen/Qwen3-4B --path /srv/models/Qwen3-4B --replicas 2
 | --path | None | 本地权重目录；未指定时先查注册配置，再尝试下载 |
 | --host | localhost | API 服务主机 |
 | --port | 8000 | API 端口 |
-| --max-model-len | None | 上下文 override |
+| --max-model-len | None | 覆盖上下文长度 |
 | --replicas | 1 | 自动部署时的最小 READY 副本数 |
-| --nodes | None | 一个或多个明确节点 ID；绕过自动 placement |
-| --tool-parser | None | 为该模型别名覆盖 vLLM tool parser |
+| --nodes | None | 显式节点 ID；绕过自动放置 |
+| --tool-parser | None | 为该模型别名覆盖工具解析器，取值须为支持的 vLLM 解析器 |
 
 部分成功时返回非零退出码，见[模型管理](model-management.md)。
 
@@ -70,11 +74,9 @@ aegaeon undeploy Qwen/Qwen3-4B --nodes node_1
 | --port | 8000 | API 端口 |
 | --nodes | 全部已知副本 | 只卸载列出的节点 |
 
-已有请求完成后，重试卸载 DRAINING 副本。
-
 ## 查询
 
-主帮助列出子命令；各子命令的帮助列出参数及解析器默认值。
+各命令的帮助列出参数及解析器默认值。
 
 ```bash
 aegaeon --help

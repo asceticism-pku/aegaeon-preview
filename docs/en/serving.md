@@ -2,7 +2,7 @@
 
 ## OpenAI-style client
 
-Point an OpenAI client at the service's `/v1` URL:
+OpenAI clients connect through the service's `/v1` URL. The `model` value identifies a deployed model, and generation currently uses greedy decoding:
 
 ```python
 from openai import OpenAI
@@ -21,7 +21,7 @@ The key satisfies the client constructor; configure authentication at your gatew
 
 ## Streaming
 
-Set `stream=True` and consume `chunk.choices[0].delta.content`. Usage chunks have empty `choices`:
+With `stream=True`, text arrives through `chunk.choices[0].delta.content`. Setting `stream_options.include_usage=true` adds a final usage chunk with empty `choices`:
 
 ```python
 stream = client.chat.completions.create(
@@ -35,10 +35,10 @@ for chunk in stream:
 
 Raw SSE responses end with `data: [DONE]`. Completion requests use `/v1/completions` with a string or token-ID list as `prompt`.
 
-## Function tools
+## Tool calling
 
-Pass `tools` and `tool_choice` using OpenAI-style messages. The model must have a matching vLLM parser; set `tool_parser` in its YAML entry or deployment request to override selection.
+Aegaeon supports OpenAI-style `tools` and `tool_choice`. With tools present, `tool_choice` defaults to `auto`; `none` disables parsing. Tool calling requires a supported vLLM parser, inferred from the model name/path or set explicitly through `tool_parser` in the model's YAML entry or deployment request.
 
-Read `tool_calls`, execute the selected function in the client, and return its result as a tool message. Tool parsing buffers output until completion, so tool responses arrive together.
+Clients execute the returned `tool_calls` and submit results as `tool` messages linked by `tool_call_id`. With a tool parser active, streaming buffers generated output until completion, then emits the parsed content and tool calls together.
 
 See [Generation Parameters](generation.md) for accepted values and [HTTP API](api.md) for endpoints and schemas.

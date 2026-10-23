@@ -1,8 +1,8 @@
 (() => {
   const data = JSON.parse(document.getElementById('docs-data').textContent);
   const strings = {
-    zh: {docs:'文档',home:'首页',toc:'目录',search:'搜索文档',keywords:'搜索关键词',close:'关闭搜索',menu:'展开文档导航',navigation:'文档导航',mainNavigation:'主要导航',location:'当前位置',articleNavigation:'文章导航',articleToc:'当前文章目录',copyCode:'复制代码',copyLink:'复制页面链接',print:'打印当前文章',prev:'上一篇',next:'下一篇',contribute:'参与贡献',backTop:'返回顶部',copied:'已复制',copyFallback:'请选中内容后复制',searchEmpty:'搜索功能、参数、接口或错误信息。',notFound:'没有找到相关内容，请尝试其他关键词。',searchFooter:'输入关键词搜索全文 · Enter 打开结果 · Esc 关闭',console:'控制台',chat:'对话',switchLanguage:'切换到 English'},
-    en: {docs:'Docs',home:'Home',toc:'On this page',search:'Search docs',keywords:'Search keywords',close:'Close search',menu:'Open documentation navigation',navigation:'Documentation navigation',mainNavigation:'Main navigation',location:'Current location',articleNavigation:'Article navigation',articleToc:'Article contents',copyCode:'Copy code',copyLink:'Copy page link',print:'Print this article',prev:'Previous',next:'Next',contribute:'Contribute',backTop:'Back to top',copied:'Copied',copyFallback:'Select the text and copy it manually',searchEmpty:'Search features, parameters, endpoints, or errors.',notFound:'No results. Try a different keyword.',searchFooter:'Search the full text · Enter to open · Esc to close',console:'Console',chat:'Chat',switchLanguage:'切换到中文'}
+    zh: {docs:'文档',home:'首页',toc:'目录',search:'搜索文档',keywords:'搜索关键词',close:'关闭搜索',menu:'展开文档导航',navigation:'文档导航',mainNavigation:'主要导航',location:'当前位置',articleNavigation:'文章导航',articleToc:'当前文章目录',copyCode:'复制代码',copyLink:'复制页面链接',print:'打印当前文章',prev:'上一篇',next:'下一篇',architecture:'系统架构',backTop:'返回顶部',copied:'已复制',copyFallback:'请选中内容后复制',searchEmpty:'搜索功能、参数、接口或错误信息。',notFound:'没有找到相关内容，请尝试其他关键词。',searchFooter:'输入关键词搜索全文 · Enter 打开结果 · Esc 关闭',console:'控制台',chat:'对话',switchLanguage:'切换到 English'},
+    en: {docs:'Docs',home:'Home',toc:'On this page',search:'Search docs',keywords:'Search keywords',close:'Close search',menu:'Open documentation navigation',navigation:'Documentation navigation',mainNavigation:'Main navigation',location:'Current location',articleNavigation:'Article navigation',articleToc:'Article contents',copyCode:'Copy code',copyLink:'Copy page link',print:'Print this article',prev:'Previous',next:'Next',architecture:'Architecture',backTop:'Back to top',copied:'Copied',copyFallback:'Select the text and copy it manually',searchEmpty:'Search features, parameters, endpoints, or errors.',notFound:'No results. Try a different keyword.',searchFooter:'Search the full text · Enter to open · Esc to close',console:'Console',chat:'Chat',switchLanguage:'切换到中文'}
   };
   let language = 'zh';
   let preferredLanguage = 'zh';
@@ -78,7 +78,7 @@
     pages = data.languages[language].pages; groups = data.languages[language].groups;
     order = groups.flatMap(group => group.sections.flatMap(section => section.pages));
     let id = parts.join('/');
-    id = ({home:'index', 'user-guide':'quickstart', 'developer-guide':'development', 'api-reference':'api', advanced:'architecture', 'live-demo':'serving'})[id] || id;
+    id = ({home:'index', 'user-guide':'quickstart', 'developer-guide':'architecture', 'api-reference':'api', advanced:'architecture', 'live-demo':'serving'})[id] || id;
     if (!pages[id]) id = 'index';
     const samePage = activeId === id && article.dataset.loaded && !changedLanguage;
     activeId = id;
@@ -122,7 +122,7 @@
     dialog.setAttribute('aria-label',t('search'));
     document.querySelector('#search-close').setAttribute('aria-label',t('close'));
     document.querySelector('.search-footer').textContent = t('searchFooter');
-    document.querySelector('.site-footer a').textContent = t('contribute');
+    document.querySelector('.repo-link span').innerHTML = esc(t('architecture')) + '<small>Aegaeon</small>';
     toggle.setAttribute('aria-label',t('menu'));
     [['#sidebar','navigation'],['.nav-tabs','mainNavigation'],['#breadcrumbs','location'],['#page-nav','articleNavigation'],['#toc','articleToc']].forEach(([selector,key]) => document.querySelector(selector).setAttribute('aria-label',t(key)));
     document.querySelector('#back-top').title = t('backTop');

@@ -4,6 +4,8 @@ Use `aegaeon` or `python -m aegaeon`.
 
 ## doctor
 
+`doctor` checks the active Python environment and local host prerequisites. A configuration file adds model-path, profile, topology, and memory-budget checks.
+
 ```bash
 aegaeon doctor
 CUDA_VISIBLE_DEVICES=0 aegaeon doctor --check-cuda
@@ -11,9 +13,11 @@ CUDA_VISIBLE_DEVICES=0 aegaeon doctor --check-cuda
 
 | Option | Parser default | Meaning |
 |---|---|---|
-| --check-cuda | false | Run small PyTorch/CuPy CUDA operations and import vLLM's native extension on an allocated GPU |
-
-Check dependencies; `--check-cuda` also runs CUDA checks.
+| --config | None | YAML file for local model, profile, topology, and memory checks |
+| --models | None | Comma-separated startup models; requires --config |
+| --tensor-parallel-size | None | Nonzero overrides YAML; 0 uses YAML; requires --config; the effective size must be 1 |
+| --strict | false | Return a nonzero status for warnings as well as failures |
+| --check-cuda | false | Run small PyTorch/CuPy CUDA operations, import vLLM's native extension, inspect visible GPUs, and test one-page host registration |
 
 ## start
 
@@ -26,7 +30,7 @@ aegaeon start --config /srv/aegaeon/config.yaml --host 127.0.0.1 --port 8000 --r
 | --config | Required | YAML file |
 | --host | 0.0.0.0 | Bind address |
 | --port | 8000 | Port |
-| --models | None | Comma-separated startup models; overrides startup_models |
+| --models | None | Comma-separated startup models; overrides startup_models; an empty string starts without models |
 | --num-prefill-engines | 1 | Normal startup uses YAML ServerConfig |
 | --num-decode-engines | 1 | Same |
 | --num-engines | 0 | Same |
@@ -53,7 +57,7 @@ aegaeon deploy Qwen/Qwen3-4B --path /srv/models/Qwen3-4B --replicas 2
 | --max-model-len | None | Context override |
 | --replicas | 1 | Minimum READY replica target for automatic placement |
 | --nodes | None | Explicit node IDs; bypass automatic placement |
-| --tool-parser | None | vLLM tool-parser override for this model alias |
+| --tool-parser | None | Supported vLLM tool-parser override for this model alias |
 
 Partial operations exit with a nonzero status; see [Model Management](model-management.md).
 
@@ -70,11 +74,9 @@ aegaeon undeploy Qwen/Qwen3-4B --nodes node_1
 | --port | 8000 | API port |
 | --nodes | All known replicas | Unload only the listed nodes |
 
-Retry draining replicas after their active requests finish.
-
 ## Queries
 
-The main help lists commands; each command's help lists its options and parser defaults.
+Each command's help lists its options and parser defaults.
 
 ```bash
 aegaeon --help

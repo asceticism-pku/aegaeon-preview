@@ -1,6 +1,6 @@
 # 配置参考
 
-YAML 包含 `server`、`models` 和 `devices` 三部分。Engine 拓扑和内存预算写在 `server`，host/port 和 Ray 地址通过 CLI 传入。完整配置见[示例](examples/README.md)。
+YAML 包含三部分：`server` 定义 Engine 拓扑和内存预算，`models` 注册模型路径和性能 profile，`devices` 描述 GPU 容量与带宽。监听地址、端口和 Ray 地址通过 CLI 传入。完整配置见[示例](examples/README.md)。
 
 ## ServerConfig 默认值
 
@@ -24,7 +24,7 @@ YAML 包含 `server`、`models` 和 `devices` 三部分。Engine 拓扑和内存
 | startup_models | null | null=全部；[]=空服务 |
 | cuda_graph | CudaGraphConfig() | 默认关闭；详见下表 |
 
-CPU KV 默认每节点 128 GiB，按可用主机内存调整 slab 和权重缓存。Simple 模式设置 `num_engines > 0` 且 P/D Engine 数量为 0；P/D 模式设置 `num_engines: 0` 且两个阶段至少各一个 Engine。
+CPU KV 默认每节点 128 GiB，slab 和权重缓存需匹配可用主机内存。Simple 模式使用 `num_engines > 0`，Prefill 与 Decode Engine 数量均为 0；P/D 模式使用 `num_engines: 0`，两个阶段至少各有一个 Engine。
 
 `startup_models: null` 加载所有配置模型，`[]` 启动空服务，列表选择指定模型。CLI 的 `--models` 优先。
 
@@ -34,13 +34,11 @@ CPU KV 默认每节点 128 GiB，按可用主机内存调整 slab 和权重缓�
 |---|---|---|
 | name | 必填 | 对外模型名字；profile 文件夹可使用独立名称 |
 | path | 空字符串 | 本地权重目录；省略时 `ModelSpec.path()` 触发下载 |
-| params | null | **输入数字乘以 2^30 后作为参数量** |
-| profile | 空字符串 | 显式性能目录别名；否则由模型名字最后一段规范化 |
-| max_model_len | null | 上下文总长度 override；仍需符合模型能力 |
+| params | null | 输入数字乘以 2^30 得到参数量；null 表示从本地权重元数据推断 |
+| profile | 空字符串 | 性能目录别名；省略时由模型名称最后一段规范化生成 |
+| max_model_len | null | 覆盖上下文总长度；仍受模型能力限制 |
 | id | 省略 | 所有模型都省略时按顺序生成；显式设置时为每个模型都填写 ID |
-| tool_parser | null | 非空 vLLM tool parser 名称；为模型别名显式选择输出函数调用解析器 |
-
-通常省略 `params`，由系统读取权重元数据；显式填写时以 `2^30` 个参数为单位。
+| tool_parser | null | 支持的 vLLM 工具解析器名称；覆盖根据模型名称或路径选择的解析器 |
 
 ## devices 条目
 
@@ -56,7 +54,7 @@ CPU KV 默认每节点 128 GiB，按可用主机内存调整 slab 和权重缓�
 
 | 字段 | 配置类默认值 | 约束 |
 |---|---|---|
-| mode | 'off' | 'off' / save / load；建议均加引号 |
+| mode | 'off' | 'off' / save / load；各取值均使用引号 |
 | archive_dir | '' | save/load 必填 |
 | batch_sizes | [1,2,4,8] | 正整数、非空；会排序去重 |
 | seq_len_buckets | [128,256,512,1024,2048] | 配置类接受多个；**当前 Worker save/load 必须只填一个最大长度桶** |
@@ -65,8 +63,4 @@ CPU KV 默认每节点 128 GiB，按可用主机内存调整 slab 和权重缓�
 | region_size_bytes | 274877906944 | 256 GiB 虚拟地址范围；正整数、2 MiB 对齐 |
 | scratch_size_bytes | 4294967296 | 4 GiB；正整数、2 MiB 对齐，且小于 region_size_bytes |
 
-图用于 P/D Decode Worker，显式配置一个最大序列长度桶。详见 [CUDA Graph](cuda-graphs.md)。
-
-## 修改配置后
-
-修改 YAML 后重启服务。部署 API 单独更新运行时状态。
+CUDA Graph save/load 默认关闭；`mode` 为 `'save'` 或 `'load'` 时，在 P/D Decode Worker 上运行。详见 [CUDA Graph](cuda-graphs.md)。

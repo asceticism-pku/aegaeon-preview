@@ -1,16 +1,14 @@
 # 模型准备
 
-使用完整的本地 checkpoint，包括模型配置、tokenizer、聊天模板及所有 safetensors 权重分片。多节点部署时，各节点使用相同的绝对路径。
+模型 checkpoint 包含模型配置、tokenizer 文件及所有 safetensors 权重分片。聊天请求还需要 tokenizer 的聊天模板。多节点部署时，各节点必须能通过相同的绝对路径访问 checkpoint。
 
-## 下载
+## 模型下载
 
 ```bash
 hf download Qwen/Qwen3-4B --local-dir /srv/models/Qwen3-4B
 ```
 
-下载器使用标准的 `HTTP_PROXY` 和 `HTTPS_PROXY` 配置。下载大模型前先配置代理访问。
-
-## 注册模型
+## 模型注册
 
 ```yaml
 models:
@@ -22,11 +20,9 @@ models:
 
 - `name`：客户端请求中的模型标识。
 - `path`：checkpoint 路径。
-- `profile`：性能数据目录，见 [Profiling](profiling.md)。
-- `max_model_len`：包含输入与输出的总上下文长度。
+- `profile`：选择性能数据，见[性能数据采集](profiling.md)。
+- `max_model_len`：包含输入和生成 token 的总长度。
 
-通常省略 `params`，由 Aegaeon 读取权重元数据；显式填写时以 `2^30` 个参数为单位。
+通常省略 `params`，由 Aegaeon 读取权重元数据中的参数量；显式填写时以 `2^30` 个参数为单位。
 
-Chat 使用 tokenizer 的聊天模板和 checkpoint 中的 EOS 配置。需要函数调用解析时，可通过 `tool_parser` 指定 vLLM parser，见[在线推理](serving.md)。
-
-完整模型字段见[配置参考](configuration.md)。模型也可以[动态部署](model-management.md)。
+注册用于定义模型，本身不会创建 `ready` 副本。还需选择启动时缓存的模型，或[动态部署](model-management.md)。完整模型字段见[配置参考](configuration.md)。

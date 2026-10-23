@@ -1,19 +1,19 @@
 # 调度与 SLO
 
-Aegaeon 在 batch 轮次和执行配额边界切换模型，结合[性能 profile](profiling.md)在切换成本与 token 时延之间分配配额。
+Aegaeon 按模型组织请求，在 batch 的执行轮次之间切换模型。Decode 结合[性能 profile](profiling.md)分配时间配额，平衡切换开销与 token 时延。
 
-Simple 模式在同一 Engine 中调度 Prefill 和 Decode。P/D 模式使用独立资源池：Prefill 按到达顺序和负载分发，Decode 调度模型 batch 与 token 配额。
+Simple 模式在同一个引擎中调度 Prefill 和 Decode。P/D 模式使用独立的引擎池：Prefill 按到达顺序和队列负载分发，Decode 按时间配额调度各模型的 batch。
 
 ## SLO 设置
 
-启动前在 API 和各 Ray 节点环境中设置：
+TTFT 和 TPOT 目标以秒为单位，在调度模块导入时读取。API 进程和所有 Ray 节点环境都需要在启动前设置相同的值：
 
 ```bash
 export AEGAEON_TTFT_SLO=3
 export AEGAEON_TPOT_SLO=0.03
 ```
 
-单位为秒，TTFT 默认 10 秒，TPOT 默认 0.1 秒。修改后重启相关进程。
+TTFT 默认 10 秒，TPOT 默认 0.1 秒。
 
 ## 策略作用域
 

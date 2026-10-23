@@ -1,30 +1,34 @@
 # 快速开始
 
-完成[安装](installation.md)后，在仓库根目录执行以下命令。示例使用单张 GPU 的 Simple 模式。
+本例在单张 GPU 上以 Simple 模式运行 Qwen3-4B，使用提供的 A100 40 GB profile，并假定已完成[安装](installation.md)。
 
-## 准备模型
+## 模型与配置
+
+[单 GPU 配置](examples/simple.yaml)定义了模型、缓存预算和一个 Simple Engine。将它保存为工作目录下的 `aegaeon.yaml`。源码仓库中的同一文件位于 `docs/zh/examples/simple.yaml`。
+
+以下命令下载模型，并更新配置中的模型路径：
 
 ```bash
+CONFIG_FILE="$PWD/aegaeon.yaml"
 MODEL_DIR="$HOME/aegaeon-models/Qwen3-4B"
 hf download Qwen/Qwen3-4B --local-dir "$MODEL_DIR"
-cp docs/zh/examples/simple.yaml aegaeon.yaml
-sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" aegaeon.yaml
+sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" "$CONFIG_FILE"
 ```
 
-使用其他模型或 GPU 时，在[配置](configuration.md)中调整路径、内存预算和性能 profile。
+其他 GPU 或模型需要匹配的设备条目、性能 profile 和内存预算。这些字段见[配置参考](configuration.md)。
 
-## 启动服务
+## 服务启动
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0
-aegaeon start --config aegaeon.yaml --host 127.0.0.1 --port 8000 --ray-address local
+aegaeon start --config "$CONFIG_FILE" --host 127.0.0.1 --port 8000 --ray-address local
 ```
 
-等待终端显示 `Application startup complete`。
+启动时会加载 `startup_models` 中列出的模型。日志显示 `Application startup complete` 后，服务就绪。
 
-## 发送请求
+## 首次请求
 
-在另一个终端执行：
+在另一个终端中，使用配置里的模型名称指定请求目标：
 
 ```bash
 curl -sS http://127.0.0.1:8000/v1/chat/completions \
@@ -32,4 +36,4 @@ curl -sS http://127.0.0.1:8000/v1/chat/completions \
   -d '{"model":"Qwen/Qwen3-4B","messages":[{"role":"user","content":"用一句话解释 KV Cache。"}],"temperature":0,"max_tokens":64}'
 ```
 
-响应包含 `choices[0].message.content`、`finish_reason` 和 `usage`。客户端接入和流式输出见[在线推理](serving.md)。
+响应包含 `choices[0].message.content`、`finish_reason` 和 `usage`。客户端接入与流式输出见[在线推理](serving.md)。

@@ -1,6 +1,6 @@
 # Configuration Examples
 
-Replace model paths, GPU devices, and profile aliases before use, and adjust budgets for available memory.
+These examples cover common service topologies. Model paths, GPU assignments, profile aliases, and memory budgets depend on the deployment environment.
 
 | File | Topology |
 |---|---|
@@ -16,4 +16,4 @@ Replace model paths, GPU devices, and profile aliases before use, and adjust bud
 curl -sS http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/json' --data-binary @docs/en/examples/chat-request.json
 ```
 
-Do not run these configurations simultaneously on the same GPU cluster. SAVE and LOAD must retain matching layouts, models, and dependencies.
+Concurrent services need disjoint GPU assignments and separate shared-memory directories. SAVE and LOAD archives require matching layouts, models, and dependencies.

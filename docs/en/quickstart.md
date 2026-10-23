@@ -1,30 +1,34 @@
 # Quickstart
 
-Complete [installation](installation.md), then run these commands from the repository root. This example uses one GPU in Simple mode.
+This example runs Qwen3-4B on one GPU in Simple mode. It assumes [installation](installation.md) is complete and uses the provided A100 40 GB profile.
 
-## Prepare the model
+## Model and configuration
+
+The [single-GPU configuration](examples/simple.yaml) defines the model, its cache budgets, and one Simple Engine. Save it as `aegaeon.yaml` in your working directory. A source checkout contains the same file at `docs/en/examples/simple.yaml`.
+
+The following commands download the model and update its path in that configuration:
 
 ```bash
+CONFIG_FILE="$PWD/aegaeon.yaml"
 MODEL_DIR="$HOME/aegaeon-models/Qwen3-4B"
 hf download Qwen/Qwen3-4B --local-dir "$MODEL_DIR"
-cp docs/en/examples/simple.yaml aegaeon.yaml
-sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" aegaeon.yaml
+sed -i "s|/srv/models/Qwen3-4B|$MODEL_DIR|" "$CONFIG_FILE"
 ```
 
-For another model or GPU, update the paths, memory budgets, and performance profiles in the [configuration](configuration.md).
+Another GPU or model needs matching device entries, performance profiles, and memory budgets. These fields are described in the [Configuration Reference](configuration.md).
 
-## Start the service
+## Service startup
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0
-aegaeon start --config aegaeon.yaml --host 127.0.0.1 --port 8000 --ray-address local
+aegaeon start --config "$CONFIG_FILE" --host 127.0.0.1 --port 8000 --ray-address local
 ```
 
-Wait for `Application startup complete`.
+Startup loads the models listed in `startup_models`. The service is ready when the log reports `Application startup complete`.
 
-## Send a request
+## First request
 
-In another terminal:
+In another terminal, the configured model name identifies the request’s destination:
 
 ```bash
 curl -sS http://127.0.0.1:8000/v1/chat/completions \
@@ -32,4 +36,4 @@ curl -sS http://127.0.0.1:8000/v1/chat/completions \
   -d '{"model":"Qwen/Qwen3-4B","messages":[{"role":"user","content":"Explain KV Cache in one sentence."}],"temperature":0,"max_tokens":64}'
 ```
 
-The response includes `choices[0].message.content`, `finish_reason`, and `usage`. See [Online Inference](serving.md) for client integration and streaming.
+The response includes `choices[0].message.content`, `finish_reason`, and `usage`. [Online Inference](serving.md) covers client integration and streaming.

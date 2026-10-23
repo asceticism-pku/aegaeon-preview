@@ -2,6 +2,8 @@
 
 ## Greedy decoding
 
+The current Worker generates one greedy continuation per request. Sampling controls are accepted only at the values below; other values return HTTP 400.
+
 | Parameter | Accepted values |
 |---|---|
 | `n` | `1` |
@@ -14,19 +16,20 @@
 | `use_beam_search` | `false` |
 | `length_penalty` | `1` |
 | `priority` | `0` |
+| `seed` | Any integer or `null`; has no effect on greedy decoding |
 | Chat `logprobs` / `top_logprobs` | `false` or `null` / `0` or `null` |
 | Completion `logprobs` | `null` or omitted |
 
 ## Length and stopping
 
-Chat defaults to `max_tokens=128`; Completion defaults to `max_tokens=16`. Chat also accepts `max_completion_tokens`; when both are supplied they must match. Prompt and output together fit within `max_model_len`.
+Chat defaults to 128 output tokens, and Completion defaults to 16. Chat accepts either `max_tokens` or `max_completion_tokens`; if both are supplied, their values must match. The output limit must be at least 1. The prompt must leave room for at least one output token, and generation is bounded by the model's total `max_model_len`.
 
 | Parameter | Meaning |
 |---|---|
 | `stop` | Stop string or strings applied to visible text |
-| `stop_token_ids` | Additional token IDs that end generation |
-| `ignore_eos` | Ignore EOS while retaining the length limit |
-| `min_tokens` | Minimum output before accepting stop conditions |
+| `stop_token_ids` | Additional nonnegative token IDs that end generation |
+| `ignore_eos` | Ignore EOS; explicit stop conditions and length limits still apply |
+| `min_tokens` | Minimum output before accepting stop conditions; from 0 to the output limit |
 | `include_stop_str_in_output` | Retain the matched stop string |
 | `skip_special_tokens` | Omit special tokens when decoding |
 | `return_token_ids` | Include token IDs in the response |
@@ -35,8 +38,8 @@ Chat defaults to `max_tokens=128`; Completion defaults to `max_tokens=16`. Chat 
 
 ## Prompt formatting
 
-`truncate_prompt_tokens` limits input tokens; `truncation_side='left'` keeps the end and `'right'` keeps the beginning. `-1` leaves plain-text input unchanged.
+`truncate_prompt_tokens` accepts a positive input-token limit or `-1`. For plain-text input, `-1` leaves the input unchanged, and truncation defaults to keeping the end. `truncation_side='left'` keeps the end; `'right'` keeps the beginning.
 
-Chat defaults to `add_special_tokens=false` and `add_generation_prompt=true`. Set `add_generation_prompt=false` when using `continue_final_message=true`.
+Chat defaults to `add_special_tokens=false` and `add_generation_prompt=true`. `continue_final_message=true` continues the last message and requires `add_generation_prompt=false`.
 
 Complete request types and defaults are available at the running service's `/docs` and `/openapi.json`.

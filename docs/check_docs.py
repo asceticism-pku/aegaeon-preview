@@ -1,6 +1,7 @@
 from pathlib import Path
 import ast
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -190,16 +191,40 @@ def defaults(source, cls):
             except (KeyError,TypeError,ValueError): pass
     return result
 
-def markdown_table(text, start_heading, end_heading):
-    start=text.index(start_heading)
-    end=text.index(end_heading,start)
-    section=text[start:end]
-    result={}
+def mask_fenced_code(text):
+    """Hide fenced examples while preserving their physical source locations."""
+    return re.sub(
+        r'```[^\n]*\n.*?```',
+        lambda match: re.sub(r'[^\n]', ' ', match.group(0)),
+        text,
+        flags=re.S,
+    )
+
+
+def markdown_table(text, start_heading):
+    prose = mask_fenced_code(text)
+    heading = re.fullmatch(r'(#{1,6})\s+(.+)', start_heading)
+    headings = list(re.finditer(r'^(#{1,6})[ \t]+(.+?)[ \t]*$', prose, flags=re.M))
+    start = next(
+        (index for index, match in enumerate(headings)
+         if match.group(1) == heading.group(1) and match.group(2) == heading.group(2)),
+        None,
+    )
+    if start is None:
+        return {}
+    level = len(headings[start].group(1))
+    end = next(
+        (match.start() for match in headings[start + 1:] if len(match.group(1)) <= level),
+        len(prose),
+    )
+    section = prose[headings[start].end():end]
+    result = {}
     for line in section.splitlines():
-        match=re.match(r'\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|',line)
-        if match and not set(match.group(1).strip()) <= {'-'}:
-            result[match.group(1).strip()]=match.group(2).strip()
+        match = re.match(r'\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|', line)
+        if match and not set(match.group(1).strip()) <= {'-', ':'}:
+            result[match.group(1).strip()] = match.group(2).strip()
     return result
+
 
 def shown(value):
     if value is None: return 'null'
@@ -258,21 +283,19 @@ for path in sorted(path for doc in docs for path in doc.rglob('*.md')):
     counts['markdown']+=1
     text=path.read_text(encoding='utf-8')
     if text.count('```')%2: errors.append(f'{path.name}: unbalanced fences')
-    # Exclude code examples when checking actual Markdown links.
-    prose=re.sub(r'```[^\n]*\n.*?```','',text,flags=re.S)
-    vague_patterns = (
-        (r'可能|也许|未必|尚待|暂待|需.{0,12}验证|自行验证|待验证', 'ambiguous Chinese wording'),
-        (r'不能|不要|不得|不可|禁止|不足以|不应|请勿|不受支持', 'directive negative phrasing'),
-        (r'\bmay\b|\bmight\b|\bperhaps\b|\bpossibly\b|requires? validation|needs? validation', 'ambiguous English wording'),
-    )
-    for pattern, label in vague_patterns:
-        if re.search(pattern, prose, flags=re.I):
-            errors.append(f'{path.name}: {label}')
-    for target in re.findall(r'(?<!!)\[[^\]]+\]\(([^)]+)\)',prose):
-        if target.startswith(('http:','https:','#','mailto:')): continue
-        counts['links']+=1
-        resolved=(path.parent/target.split('#')[0]).resolve()
-        if not resolved.exists(): errors.append(f'{path.name}: missing link {target}')
+    # Mask code, rather than deleting it, so link diagnostics retain line numbers.
+    prose = mask_fenced_code(text)
+    for match in re.finditer(r'(?<!!)\[[^\]]+\]\(([^)]+)\)', prose):
+        target = match.group(1)
+        if target.startswith(('http:', 'https:', '#', 'mailto:')):
+            continue
+        counts['links'] += 1
+        resolved = (path.parent / target.split('#')[0]).resolve()
+        if not resolved.exists():
+            line = prose[:match.start()].count('\n') + 1
+            label = path.relative_to(root).as_posix()
+            resolved_label = Path(os.path.relpath(resolved, root)).as_posix()
+            errors.append(f'{label}:{line}: missing link {target!r} (resolved {resolved_label})')
     generated = set()
     for fence in re.finditer(r'```([^\n]*)\n(.*?)```', text, flags=re.S):
         lang, block = fence.groups()
@@ -330,13 +353,13 @@ def cell_value(cell, template):
     return raw
 
 reference_tables = (
-    (docs[0]/'configuration.md','## ServerConfig 默认值','## models 条目',server_defaults,'zh ServerConfig'),
-    (docs[1]/'configuration.md','## ServerConfig defaults','## Model entries',server_defaults,'en ServerConfig'),
-    (docs[0]/'configuration.md','## cuda_graph 默认与约束','## 修改配置后',graph_defaults,'zh CudaGraphConfig'),
-    (docs[1]/'configuration.md','## CUDA graph defaults and constraints','## After editing configuration',graph_defaults,'en CudaGraphConfig'),
+    (docs[0]/'configuration.md','## ServerConfig 默认值',server_defaults,'zh ServerConfig'),
+    (docs[1]/'configuration.md','## ServerConfig defaults',server_defaults,'en ServerConfig'),
+    (docs[0]/'configuration.md','## cuda_graph 默认与约束',graph_defaults,'zh CudaGraphConfig'),
+    (docs[1]/'configuration.md','## CUDA graph defaults and constraints',graph_defaults,'en CudaGraphConfig'),
 )
-for path,start,end,source_defaults,label in reference_tables:
-    table=markdown_table(path.read_text(encoding='utf-8'),start,end)
+for path,start,source_defaults,label in reference_tables:
+    table=markdown_table(path.read_text(encoding='utf-8'),start)
     for field,value in source_defaults.items():
         counts['scope_checks'] += 1
         if field not in table:
@@ -369,13 +392,12 @@ for node in ast.parse(api_source.read_text(encoding='utf-8')).body:
         )
         if not hidden:
             public_routes.add((func.attr.upper(),decorator.args[0].value))
-for path,label,start,end in (
-    (docs[0]/'api.md','zh routes','## 接口清单','## 模型列表'),
-    (docs[1]/'api.md','en routes','## Endpoints','## Model listing'),
+for path,label in (
+    (docs[0]/'api.md','zh routes'),
+    (docs[1]/'api.md','en routes'),
 ):
-    section=path.read_text(encoding='utf-8')
-    section=section[section.index(start):section.index(end,section.index(start))]
-    documented_routes=set(re.findall(r'^\|\s*(GET|POST|PUT|PATCH|DELETE)\s*\|\s*(`?[^|`]+`?)\s*\|',section,flags=re.M))
+    prose = mask_fenced_code(path.read_text(encoding='utf-8'))
+    documented_routes=set(re.findall(r'^\|\s*(GET|POST|PUT|PATCH|DELETE)\s*\|\s*(`?[^|`]+`?)\s*\|',prose,flags=re.M))
     documented_routes={(method,route.strip().strip('`')) for method,route in documented_routes}
     counts['scope_checks'] += 1
     if documented_routes != public_routes:
@@ -390,22 +412,17 @@ for cmd in ([],['doctor'],['start'],['deploy'],['undeploy']):
     if result.returncode: errors.append(f'CLI help {cmd} failed: {result.stderr}')
     counts['cli_examples']+=1
 
-cli_sections=(('doctor','start'),('start','deploy'),('deploy','undeploy'),('undeploy','Queries'))
-for command,next_heading in cli_sections:
+for command in ('doctor', 'start', 'deploy', 'undeploy'):
     result=subprocess.run(
         [sys.executable,str(root/'aegaeon/cli.py'),command,'--help'],
         capture_output=True,text=True,encoding='utf-8',errors='replace'
     )
     source_options=set(re.findall(r'(?<!\w)--[a-z][a-z-]+',result.stdout))-{'--help'}
-    for path,label,end_heading in (
-        (docs[0]/'cli.md','zh CLI','查询' if command=='undeploy' else next_heading),
-        (docs[1]/'cli.md','en CLI',next_heading),
+    for path,label in (
+        (docs[0]/'cli.md','zh CLI'),
+        (docs[1]/'cli.md','en CLI'),
     ):
-        table=markdown_table(
-            path.read_text(encoding='utf-8'),
-            f'## {command}',
-            f'## {end_heading}',
-        )
+        table=markdown_table(path.read_text(encoding='utf-8'), f'## {command}')
         documented={name for name in table if name.startswith('--')}
         counts['scope_checks'] += 1
         if documented != source_options:

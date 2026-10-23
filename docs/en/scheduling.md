@@ -1,19 +1,19 @@
 # Scheduling and SLOs
 
-Aegaeon switches models at batch-round and execution-quota boundaries. Quotas balance model-switch cost against token latency using [performance profiles](profiling.md).
+Aegaeon groups requests by model and switches models between batch turns. Decode time quotas use [performance profiles](profiling.md) to balance switching overhead against token latency.
 
-Simple mode schedules Prefill and Decode in one engine. P/D mode uses separate engine pools; Prefill dispatches by arrival/load, while Decode schedules model batches and token quotas.
+Simple mode schedules Prefill and Decode in one engine. P/D mode uses separate engine pools: Prefill dispatches by arrival order and queue load, while Decode schedules model batches with time quotas.
 
 ## SLO settings
 
-Set these variables in the API and all Ray node environments before startup:
+TTFT and TPOT targets are expressed in seconds and read when the scheduling modules are imported. The API process and all Ray node environments need the same values before startup:
 
 ```bash
 export AEGAEON_TTFT_SLO=3
 export AEGAEON_TPOT_SLO=0.03
 ```
 
-Values are seconds. Defaults are 10 seconds for TTFT and 0.1 seconds for TPOT. Restart the relevant processes after changes.
+Defaults are 10 seconds for TTFT and 0.1 seconds for TPOT.
 
 ## Policy scopes
 
