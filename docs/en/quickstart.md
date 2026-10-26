@@ -6,6 +6,8 @@ This example runs Qwen3-4B on one GPU in Simple mode. It assumes [installation](
 
 The [single-GPU configuration](examples/simple.yaml) defines the model, its cache budgets, and one Simple Engine. Save it as `aegaeon.yaml` in your working directory. A source checkout contains the same file at `docs/en/examples/simple.yaml`.
 
+The `/srv/models` path in the example is a default convention. Replace it with your own absolute model path as shown below; see [filesystem paths](configuration.md#filesystem-paths) for the archive and dataset conventions.
+
 The following commands download the model and update its path in that configuration:
 
 ```bash

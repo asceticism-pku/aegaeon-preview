@@ -2,6 +2,12 @@
 
 YAML 包含三部分：`server` 定义 Engine 拓扑和内存预算，`models` 注册模型路径和性能 profile，`devices` 描述 GPU 容量与带宽。监听地址、端口和 Ray 地址通过 CLI 传入。完整配置见[示例](examples/README.md)。
 
+## 文件系统路径
+
+示例和部分随附工具默认采用 `/srv` 目录布局：`/srv/models` 存放模型权重，`/srv/aegaeon-archives` 存放 CUDA Graph 存档，`/srv/datasets` 存放数据集。
+
+运行示例前，请将路径替换为本机实际使用的绝对路径。将各个 `models[].path` 设为对应的 checkpoint 目录；使用 CUDA Graph save/load 时，将 `server.cuda_graph.archive_dir` 设为所需的存档位置。对于工具，优先使用其路径参数或文档说明的环境变量；若未提供这些选项，则修改工具中的默认路径。确保服务能够读取输入并写入输出。多节点部署时，所有使用这些路径的节点都必须能够访问相应文件。[快速开始](quickstart.md)演示了如何替换配置中的路径。
+
 ## ServerConfig 默认值
 
 | 字段 | 默认值 | 含义 / 注意事项 |

@@ -1,6 +1,3 @@
-# xinjin2 GPU 1 test configuration. The fixed 8 GiB CUDA arena is selected
-# outside YAML with AEGAEON_ARENA_FRACTION=0.20. Also set
-# CUDA_VISIBLE_DEVICES=1 and AEGAEON_CUDA_VISIBLE_DEVICES=1.
 server:
   nnodes: 1
   num_engines: 1
@@ -20,7 +17,7 @@ server:
     mode: 'off'
 models:
 - name: Qwen/Qwen2.5-1.5B-Instruct
-  path: /users/shared/Models/Qwen/Qwen2.5-1.5B-Instruct
+  path: /srv/models/Qwen/Qwen2.5-1.5B-Instruct
   profile: Qwen/Qwen2.5-1.5B-Instruct
   max_model_len: 4096
 devices:

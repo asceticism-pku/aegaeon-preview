@@ -6,6 +6,8 @@
 
 [单 GPU 配置](examples/simple.yaml)定义了模型、缓存预算和一个 Simple Engine。将它保存为工作目录下的 `aegaeon.yaml`。源码仓库中的同一文件位于 `docs/zh/examples/simple.yaml`。
 
+示例采用 `/srv/models` 作为默认路径。请按下面的方法将其替换为实际使用的模型绝对路径；存档和数据集的路径约定见[文件系统路径](configuration.md#文件系统路径)。
+
 以下命令下载模型，并更新配置中的模型路径：
 
 ```bash

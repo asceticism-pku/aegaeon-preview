@@ -2,6 +2,12 @@
 
 YAML has three sections: `server` defines engine topology and memory budgets, `models` registers model paths and profiles, and `devices` describes GPU capacity and bandwidth. The CLI supplies the bind address, port, and Ray address. See the [examples](examples/README.md).
 
+## Filesystem paths
+
+The examples and several bundled tools assume a `/srv` directory layout by default: `/srv/models` for model weights, `/srv/aegaeon-archives` for CUDA Graph archives, and `/srv/datasets` for datasets.
+
+Before running an example, replace its paths with absolute paths on your machine. Set each `models[].path` to the corresponding checkpoint directory and, when using CUDA Graph save/load, set `server.cuda_graph.archive_dir` to your archive location. For tools, use their path arguments or documented environment variables where available; otherwise adjust the tool's path defaults. Ensure the service can read the inputs and write the outputs. In multi-node deployments, the configured paths must be accessible on every node that uses them.
+
 ## ServerConfig defaults
 
 | Field | Default | Meaning / constraints |
