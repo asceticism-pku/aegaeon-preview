@@ -27,10 +27,23 @@ python benchmark/demo_api.py --host 127.0.0.1 --port 8000 \
 | `benchmark/work_stealing_gpu_smoke.py` | 运行本地 1P+2D Work Stealing 负载 |
 | `benchmark/compare_work_stealing_results.py` | 比较已保存的 Work Stealing 结果 |
 | `benchmark/model_placement_gpu_smoke.py` | 运行本地放置与路由负载 |
+| `benchmark/replay_workload.py` | 按 CSV 到达时间向已有 HTTP 服务回放请求 |
 | `tools/benchmark_foundry_three_model_latency.py` | 从已有运行记录重放三模型 CUDA Graph 实验 |
 | `sim/` | 纯 CPU 调度仿真，见 `sim/README.md` |
 
 各工具通过 `--help` 提供参数说明。使用匹配的[性能数据](profiling.md)，并区分启动、模型切换和稳态测量。
+
+使用服务上已部署的模型别名，回放仓库内的负载：
+
+```bash
+python benchmark/replay_workload.py --csv workloads/synth-2-0.1-1.0-1.0.csv \
+  --host 127.0.0.1 --port 8000 --models qwen2_5_7b qwen2_1_5b
+```
+
+三模型 Foundry 延迟工具要求显式传入 `--source-run /path/to/validated-run`。
+该目录须包含验证通过且带有 `archive_root` 的 `report.json`，以及配置了
+Qwen3-4B、Qwen3.5-9B 和 Gemma-3-4B 的 `multi-model-load.yaml`。
+正式测量前可用 `--preflight-only` 检查来源归档和本地模型路径。
 
 ## 调优
 

@@ -320,11 +320,14 @@ for path in (path for doc in docs for path in (doc/'examples').glob('*.json')):
 # accept broader shapes. Keep every user-facing entry point on the same scope.
 zh_all='\n'.join(path.read_text(encoding='utf-8') for path in docs[0].rglob('*.md'))
 en_all='\n'.join(path.read_text(encoding='utf-8') for path in docs[1].rglob('*.md'))
+en_coming_next=(docs[1]/'capabilities.md').read_text(encoding='utf-8').partition('**Coming Next**:')[2].split('\n## ',1)[0]
 scope_requirements = (
     ('zh TP scope', '仅支持 `tensor_parallel_size=1`' in zh_all),
-    ('en TP scope', 'Only `tensor_parallel_size=1` is supported' in en_all),
+    ('en TP scope', 'Only `tensor_parallel_size=1` is supported' in en_all or
+     'Currently supported configuration assumes TP=1' in (docs[1]/'deployment.md').read_text(encoding='utf-8')),
     ('zh multimodal scope', '多模态输入 | 当前仅提供文本输入与文本生成' in zh_all),
-    ('en multimodal scope', 'Multimodal input | **Unsupported**' in en_all),
+    ('en multimodal scope', 'Multimodal input | **Unsupported**' in en_all or
+     re.search(r'^- Multimodal input\s*$', en_coming_next, flags=re.M) is not None),
     ('estimator TP assertion', 'assert tp == 1' in (root/'aegaeon/estimator.py').read_text(encoding='utf-8')),
     ('pipeline assertion', 'assert pipeline_parallel_size == 1' in (root/'aegaeon/config.py').read_text(encoding='utf-8')),
     ('greedy implementation', 'torch.argmax(logits, dim=-1)' in (root/'aegaeon/worker.py').read_text(encoding='utf-8')),

@@ -1,6 +1,6 @@
 # Deployment
 
-Each configured Aegaeon node runs one Controller and shares its CPU caches among that node's engines. The supported configuration is TP=1, so each engine uses one GPU. Standard deployments use one Aegaeon node per physical Ray node; `server.nnodes` counts nodes, not GPUs.
+Each configured Aegaeon node runs one Controller and shares its CPU caches among that node's engines. Currently supported configuration assumes TP=1, so each engine uses one GPU. Standard deployments use one Aegaeon node per physical Ray node.
 
 A multi-GPU host normally uses `nnodes: 1`. Python integrations can isolate multiple logical nodes on one host with separate `NodeConfig.cuda_visible_devices` and `NodeConfig.shm_dir` settings.
 
